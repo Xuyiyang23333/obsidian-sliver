@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, Notice } from 'obsidian';
+import { App, TFile, TFolder } from 'obsidian';
 import { PermissionResult } from './permissions';
 import { ToolDefinition } from '../utils/api';
 
@@ -58,14 +58,14 @@ export async function editFile(ctx: ToolContext, path: string, oldText: string, 
     return { success: false, error: `Could not find matching text in ${path}` };
   }
 
-  const newContent = content.replace(oldText, newText);
+  const newContent = content.split(oldText).join(newText);
   await ctx.app.vault.modify(file, newContent);
   return { success: true, data: { path } };
 }
 
 export async function listFiles(ctx: ToolContext, path?: string): Promise<ToolResult> {
   const targetPath = path || '';
-  const perm = ctx.checkPermission(targetPath || '/', 'read');
+  const perm = ctx.checkPermission(targetPath, 'read');
   if (!perm.allowed) return { success: false, error: perm.reason };
 
   const folder = targetPath
@@ -83,12 +83,15 @@ export async function listFiles(ctx: ToolContext, path?: string): Promise<ToolRe
   return { success: true, data: items };
 }
 
-export async function searchFiles(ctx: ToolContext, query: string, path?: string): Promise<ToolResult> {
-  const perm = ctx.checkPermission(path || '/', 'read');
+export async function searchFiles(ctx: ToolContext, query: string, path?: string, maxResults?: number, maxMatches?: number): Promise<ToolResult> {
+  const perm = ctx.checkPermission(path || '', 'read');
   if (!perm.allowed) return { success: false, error: perm.reason };
 
+  const limitResults = maxResults && maxResults > 0 ? maxResults : 20;
+  const limitMatches = maxMatches && maxMatches > 0 ? maxMatches : 5;
+
   const files = ctx.app.vault.getFiles();
-  const results: { path: string; matches: string[] }[] = [];
+  const results: { path: string; matches: string[]; truncated?: number }[] = [];
 
   const searchPath = path ? path.replace(/\\/g, '/') : '';
   const targetFiles = searchPath
@@ -98,19 +101,27 @@ export async function searchFiles(ctx: ToolContext, query: string, path?: string
   const lowerQuery = query.toLowerCase();
 
   for (const file of targetFiles) {
+    if (results.length >= limitResults) break;
+
     const content = await ctx.app.vault.cachedRead(file);
     const lines = content.split('\n');
-    const matches = lines
+    const allMatches = lines
       .map((line, i) => ({ line, i: i + 1 }))
       .filter(({ line }) => line.toLowerCase().contains(lowerQuery))
       .map(({ line, i }) => `L${i}: ${line.trim().substring(0, 100)}`);
 
-    if (matches.length > 0) {
-      results.push({ path: file.path, matches });
+    if (allMatches.length > 0) {
+      const truncated = allMatches.length > limitMatches ? allMatches.length - limitMatches : undefined;
+      results.push({
+        path: file.path,
+        matches: allMatches.slice(0, limitMatches),
+        truncated,
+      });
     }
   }
 
-  return { success: true, data: results };
+  const hint = results.length >= limitResults ? ` (showing first ${limitResults} results)` : '';
+  return { success: true, data: { query, hint: hint || undefined, results } };
 }
 
 export async function deleteFile(ctx: ToolContext, path: string): Promise<ToolResult> {
@@ -143,13 +154,6 @@ export async function createNote(ctx: ToolContext, path: string, content: string
 
   await ctx.app.vault.create(path, content);
   return { success: true, data: { path } };
-}
-
-export async function executeCommand(_ctx: ToolContext, _commandId: string): Promise<ToolResult> {
-  return { success: false, error: 'execute_command is not available via the current Obsidian API' };
-}
-export async function loadSkill(ctx: ToolContext, name: string): Promise<ToolResult> {
-  return { success: false, error: 'Skill loading is handled by AgentCore' };
 }
 
 export function getToolDefinitions(): ToolDefinition[] {
@@ -187,7 +191,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       type: 'function',
       function: {
         name: 'edit_file',
-        description: 'Replace specific text in an existing file.',
+        description: 'Replace all occurrences of oldText with newText in an existing file.',
         parameters: {
           type: 'object',
           properties: {
@@ -216,12 +220,14 @@ export function getToolDefinitions(): ToolDefinition[] {
       type: 'function',
       function: {
         name: 'search_files',
-        description: 'Full-text search across files in the vault.',
+        description: 'Full-text search across files in the vault. Returns matching file paths with line excerpts.',
         parameters: {
           type: 'object',
           properties: {
-            query: { type: 'string', description: 'Search query' },
+            query: { type: 'string', description: 'Search query (case-insensitive)' },
             path: { type: 'string', description: 'Optional path to restrict search scope' },
+            maxResults: { type: 'number', description: 'Max files to return (default 20)' },
+            maxMatches: { type: 'number', description: 'Max matching lines per file (default 5)' },
           },
           required: ['query'],
         },
@@ -253,20 +259,6 @@ export function getToolDefinitions(): ToolDefinition[] {
             content: { type: 'string', description: 'Markdown content of the note' },
           },
           required: ['path', 'content'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'execute_command',
-        description: 'Execute an Obsidian command by its ID.',
-        parameters: {
-          type: 'object',
-          properties: {
-            commandId: { type: 'string', description: 'The command ID to execute' },
-          },
-          required: ['commandId'],
         },
       },
     },

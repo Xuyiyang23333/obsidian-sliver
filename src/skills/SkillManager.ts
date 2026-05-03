@@ -3,17 +3,14 @@ import { App, normalizePath, Notice } from 'obsidian';
 export const BUILTIN_SKILLS = [
   {
     id: 'obsidian-markdown',
-    name: 'obsidian-markdown',
     description: 'Create and edit Obsidian Flavored Markdown with wikilinks, embeds, callouts, properties.',
   },
   {
     id: 'json-canvas',
-    name: 'json-canvas',
     description: 'Create and edit JSON Canvas files (.canvas) with nodes, edges, groups, and connections.',
   },
   {
     id: 'obsidian-bases',
-    name: 'obsidian-bases',
     description: 'Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries.',
   },
 ];
@@ -23,6 +20,14 @@ export class SkillManager {
 
   constructor(app: App) {
     this.app = app;
+  }
+
+  async loadSkill(name: string): Promise<{ success: boolean; data?: unknown; error?: string }> {
+    const path = `_agents/skills/${name}/SKILL.md`;
+    const file = this.app.vault.getFileByPath(path);
+    if (!file) return { success: false, error: `Skill not found: ${name}` };
+    const content = await this.app.vault.read(file);
+    return { success: true, data: content };
   }
 
   async deployBuiltinSkills(): Promise<void> {

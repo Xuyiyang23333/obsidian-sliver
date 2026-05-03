@@ -1,4 +1,4 @@
-import { Plugin, Notice } from 'obsidian';
+import { Plugin } from 'obsidian';
 import { AgentView, VIEW_TYPE_AGENT } from './views/AgentView';
 import { AgentSettings, AgentSettingTab, DEFAULT_SETTINGS } from './settings';
 import { SkillManager } from './skills/SkillManager';
@@ -13,6 +13,8 @@ export default class ObsidianAgentPlugin extends Plugin {
     await this.loadSettings();
 
     this.skillManager = new SkillManager(this.app);
+    this.agentCore = new AgentCore(this, this.app);
+    await this.agentCore.initialize();
 
     // Register the custom view
     this.registerView(VIEW_TYPE_AGENT, (leaf) => new AgentView(leaf, this));

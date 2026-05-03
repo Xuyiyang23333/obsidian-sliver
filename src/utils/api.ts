@@ -24,20 +24,6 @@ export interface ToolDefinition {
   };
 }
 
-export interface ChatCompletionResponse {
-  id: string;
-  choices: {
-    index: number;
-    finish_reason: 'stop' | 'tool_calls' | 'length';
-    message: ChatMessage;
-  }[];
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
 export interface ApiConfig {
   endpoint: string;
   apiKey: string;
@@ -55,6 +41,35 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** Exponential backoff retry wrapper for fetch */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxRetries: number = 3,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, init);
+      if (response.ok) return response;
+      if (response.status === 429 || response.status >= 500) {
+        lastError = new ApiError(`API error: ${response.status}`, response.status, true);
+      } else {
+        throw new ApiError(`API error: ${response.status}`, response.status, false);
+      }
+    } catch (e) {
+      if (e instanceof ApiError && !e.retryable) throw e;
+      // Don't retry user-initiated cancellations
+      if (e instanceof DOMException && e.name === 'AbortError') throw e;
+      lastError = e as Error;
+    }
+    if (attempt < maxRetries) {
+      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+    }
+  }
+  throw lastError || new ApiError('Request failed after retries', 0, true);
 }
 
 /** Parsed SSE chunk from a streaming response */
@@ -100,33 +115,6 @@ function buildRequestBody(
   return body;
 }
 
-/** Non-streaming call — returns the full response at once */
-export async function chatCompletion(
-  messages: ChatMessage[],
-  tools: ToolDefinition[],
-  config: ApiConfig,
-): Promise<ChatCompletionResponse> {
-  const url = `${config.endpoint.replace(/\/+$/, '')}/chat/completions`;
-  const body = buildRequestBody(messages, tools, config, false);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) throw new ApiError('Invalid API key.', 401, false);
-    if (response.status === 429) throw new ApiError('Rate limited.', 429, true);
-    throw new ApiError(`API error: ${response.status}`, response.status, false);
-  }
-
-  return await response.json() as ChatCompletionResponse;
-}
-
 /**
  * Streaming call — yields parsed chunks as they arrive.
  *
@@ -146,7 +134,7 @@ export async function* chatCompletionStream(
   const url = `${config.endpoint.replace(/\/+$/, '')}/chat/completions`;
   const body = buildRequestBody(messages, tools, config, true);
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -155,17 +143,6 @@ export async function* chatCompletionStream(
     body: JSON.stringify(body),
     signal,
   });
-
-  if (!response.ok) {
-    if (response.status === 401) throw new ApiError('Invalid API key.', 401, false);
-    if (response.status === 429) throw new ApiError('Rate limited.', 429, true);
-    let detail = `API error: ${response.status}`;
-    try {
-      const err = await response.json();
-      if (err.error?.message) detail += ` - ${err.error.message}`;
-    } catch {}
-    throw new ApiError(detail, response.status, false);
-  }
 
   const reader = response.body?.getReader();
   if (!reader) throw new ApiError('Stream not available', 0, false);

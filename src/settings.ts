@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import ObsidianAgentPlugin from './main';
 
 export interface PathRule {
@@ -26,7 +26,7 @@ export interface AgentSettings {
 export const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant integrated into Obsidian. Your purpose is to help the user manage their Obsidian vault through conversation.
 
 ## Capabilities
-You can read, create, edit, delete, and search files inside the vault. You can also execute Obsidian commands and load specialized skills.
+You can read, create, edit, delete, and search files inside the vault, and load specialized skills for Obsidian-specific formats.
 
 ## Rules
 - Always tell the user what you're about to do before doing it.
@@ -230,7 +230,6 @@ export class AgentSettingTab extends PluginSettingTab {
         .setButtonText('Deploy Skills')
         .onClick(async () => {
           await this.plugin.deployBuiltinSkills();
-          new Notice('Skills deployed to _agents/skills/');
         }));
   }
 

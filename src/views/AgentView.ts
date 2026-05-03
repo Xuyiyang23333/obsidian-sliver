@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer, Component } from 'obsidian';
 import ObsidianAgentPlugin from '../main';
 import { AgentCore, AgentEventCallback } from '../agent/AgentCore';
+import { ChatMessage } from '../utils/api';
 
 export const VIEW_TYPE_AGENT = 'obsidian-agent-view';
 
@@ -15,6 +16,7 @@ export class AgentView extends ItemView {
   private ctxLabel: HTMLElement;
   private sessionLabel: HTMLElement;
   private sessionPopup: HTMLElement | null = null;
+  private sessionPopupCloser: ((e: MouseEvent) => void) | null = null;
   private mdComponent: Component;
 
   private currentBubble: HTMLElement | null = null;
@@ -33,7 +35,7 @@ export class AgentView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
     this.plugin = plugin;
-    this.agentCore = new AgentCore(plugin, plugin.app);
+    this.agentCore = plugin.agentCore;
     this.mdComponent = new Component();
   }
 
@@ -86,7 +88,6 @@ export class AgentView extends ItemView {
     this.ctxLabel = ctxLabel;
 
     this.addChild(this.mdComponent);
-    await this.agentCore.initialize();
     this.refreshSessionDropdown();
   }
 
@@ -104,6 +105,7 @@ export class AgentView extends ItemView {
   }
 
   private async sendMessage(): Promise<void> {
+    if (this.agentCore.isProcessing) return;
     const text = this.inputEl.value.trim();
     if (!text) return;
     const sm = this.agentCore.getSessionManager();
@@ -282,7 +284,6 @@ export class AgentView extends ItemView {
     sm.deleteMessageFrom(userIdx + 1);
 
     // Rebuild UI and send message again
-    this.messagesContainer.empty();
     this.reloadCurrentMessages();
 
     // Auto-send the message
@@ -333,7 +334,7 @@ export class AgentView extends ItemView {
         }
         const toolContainer = this.messagesContainer.createDiv({ cls: 'agent-tools' });
         for (const tc of m.tool_calls) {
-          const resultMsg = ctx.slice(i + 1).find(r => r.role === 'tool' && r.tool_call_id === tc.id);
+          const resultMsg = ctx.slice(i + 1).find((r: ChatMessage) => r.role === 'tool' && r.tool_call_id === tc.id);
           const resultStr = resultMsg?.content || '';
           const isError = resultStr.startsWith('Error:');
           const row = toolContainer.createDiv({ cls: 'agent-tool-row tool-' + (isError ? 'error' : 'done') });
@@ -442,14 +443,14 @@ export class AgentView extends ItemView {
       if (!liveEl) liveEl = this.bubbleContentDiv.createDiv({ cls: 'agent-streaming' });
       liveEl.setText(parts[liveIdx]);
       if (this.liveParaTimer !== null) clearTimeout(this.liveParaTimer);
+      // Capture element reference so timer doesn't rely on stale index
+      const capturedEl = liveEl;
+      const capturedText = parts[liveIdx];
       this.liveParaTimer = window.setTimeout(() => {
         this.liveParaTimer = null;
-        if (this.bubbleContentDiv) {
-          const el = this.bubbleContentDiv.children[liveIdx] as HTMLElement | undefined;
-          if (el && el.hasClass('agent-streaming') && parts[liveIdx]) {
-            el.empty(); el.removeClass('agent-streaming');
-            MarkdownRenderer.render(this.app, parts[liveIdx], el, '', this.mdComponent);
-          }
+        if (capturedEl.parentElement && capturedEl.hasClass('agent-streaming') && capturedText) {
+          capturedEl.empty(); capturedEl.removeClass('agent-streaming');
+          MarkdownRenderer.render(this.app, capturedText, capturedEl, '', this.mdComponent);
         }
       }, 200);
       while (this.bubbleContentDiv.children.length > parts.length) this.bubbleContentDiv.lastChild?.remove();
@@ -580,12 +581,17 @@ export class AgentView extends ItemView {
     }
     const closer = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (!popup.contains(t) && t !== this.sessionLabel) { this.closeSessionPopup(); document.removeEventListener('click', closer); }
+      if (!popup.contains(t) && t !== this.sessionLabel) { this.closeSessionPopup(); }
     };
+    this.sessionPopupCloser = closer;
     setTimeout(() => document.addEventListener('click', closer), 10);
   }
 
   private closeSessionPopup(): void {
+    if (this.sessionPopupCloser) {
+      document.removeEventListener('click', this.sessionPopupCloser);
+      this.sessionPopupCloser = null;
+    }
     if (this.sessionPopup) { this.sessionPopup.remove(); this.sessionPopup = null; }
   }
 

@@ -27,16 +27,17 @@ export class AgentCore {
   private callbacks: AgentEventCallback = {};
   private currentPermission: GlobalPermission;
   private _isProcessing: boolean = false;
+  private _cancelled: boolean = false;
   private abortController: AbortController | null = null;
 
-  get isProcessing(): boolean { return this._isProcessing; }
+  get isProcessing(): boolean { return this._isProcessing && !this._cancelled; }
 
   cancelCurrentRequest(): void {
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
-    this._isProcessing = false;
+    this._cancelled = true;
   }
 
   constructor(plugin: ObsidianAgentPlugin, app: App) {
@@ -66,6 +67,7 @@ export class AgentCore {
   async processUserMessage(content: string, skipAdd?: boolean): Promise<void> {
     if (this.isProcessing) return;
     this._isProcessing = true;
+    this._cancelled = false;
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
@@ -92,6 +94,12 @@ export class AgentCore {
 
       while (iterations < maxIterations) {
         iterations++;
+
+        // Compress context if approaching token limit
+        if (this.sessionManager.needsCompression()) {
+          await this.sessionManager.compressContext(apiConfig);
+          this.callbacks.onContextCompressed?.();
+        }
 
         const systemPrompt = this.buildSystemPrompt();
         const messages: ChatMessage[] = [
@@ -123,19 +131,6 @@ export class AgentCore {
           tool_calls: toolCalls,
         });
 
-        // Build next-turn messages (include tool results)
-        const nextMessages = [
-          { role: 'system' as const, content: this.buildSystemPrompt() },
-          ...this.sessionManager.getCurrentContext(),
-        ];
-
-        nextMessages.push({
-          role: 'assistant',
-          content: responseContent,
-          reasoning_content: reasoningContent,
-          tool_calls: toolCalls,
-        });
-
         for (const toolCall of toolCalls) {
           const { name, arguments: argsStr } = toolCall.function;
           const args = JSON.parse(argsStr);
@@ -150,11 +145,10 @@ export class AgentCore {
               case 'write_file':      result = await tools.writeFile(ctx, args.path, args.content); break;
               case 'edit_file':       result = await tools.editFile(ctx, args.path, args.oldText, args.newText); break;
               case 'list_files':      result = await tools.listFiles(ctx, args.path); break;
-              case 'search_files':    result = await tools.searchFiles(ctx, args.query, args.path); break;
+              case 'search_files':    result = await tools.searchFiles(ctx, args.query, args.path, args.maxResults, args.maxMatches); break;
               case 'delete_file':     result = await tools.deleteFile(ctx, args.path); break;
               case 'create_note':     result = await tools.createNote(ctx, args.path, args.content); break;
-              case 'execute_command': result = await tools.executeCommand(ctx, args.commandId || ''); break;
-              case 'load_skill':      result = await this.loadSkillContent(args.name); break;
+              case 'load_skill':      result = await this.plugin.skillManager.loadSkill(args.name); break;
               default:                result = { success: false, error: `Unknown tool: ${name}` };
             }
           } catch (e) {
@@ -165,7 +159,6 @@ export class AgentCore {
           this.callbacks.onToolProgress?.(name, result.success ? 'done' : 'error', resultStr);
 
           await this.sessionManager.addToolResult(toolCall.id, resultStr);
-          nextMessages.push({ role: 'tool', content: resultStr, tool_call_id: toolCall.id });
         }
 
         await this.sessionManager.saveToDisk();
@@ -202,6 +195,7 @@ export class AgentCore {
     let responseContent = '';
     const toolCallAcc: Map<number, { id: string; name: string; arguments: string }> = new Map();
     let hasToolCalls = false;
+    let gotUsage = false;
 
     this.callbacks.onThinking?.();
 
@@ -235,9 +229,11 @@ export class AgentCore {
       if (chunk.finishReason) {
         if (chunk.usage?.prompt_tokens) {
           this.sessionManager.updateTokenCount(chunk.usage.prompt_tokens);
+          gotUsage = true;
         }
 
         if (chunk.finishReason === 'tool_calls' && hasToolCalls) {
+          if (!gotUsage) this.sessionManager.estimateTokens();
           const calls: ToolCall[] = [];
           for (const [, acc] of toolCallAcc) {
             calls.push({ id: acc.id, type: 'function', function: { name: acc.name, arguments: acc.arguments } });
@@ -246,6 +242,7 @@ export class AgentCore {
         }
 
         if (chunk.finishReason === 'stop') {
+          if (!gotUsage) this.sessionManager.estimateTokens();
           await this.sessionManager.addAssistantMessage({
             role: 'assistant', content: responseContent, reasoning_content: reasoningContent,
           });
@@ -263,6 +260,7 @@ export class AgentCore {
     }
 
     // Stream ended without finish_reason
+    if (!gotUsage) this.sessionManager.estimateTokens();
     if (responseContent) {
       await this.sessionManager.addAssistantMessage({
         role: 'assistant', content: responseContent, reasoning_content: reasoningContent,
@@ -284,20 +282,13 @@ export class AgentCore {
     }
   }
 
-  private async loadSkillContent(name: string): Promise<tools.ToolResult> {
-    const path = `_agents/skills/${name}/SKILL.md`;
-    const file = this.app.vault.getFileByPath(path);
-    if (!file) return { success: false, error: `Skill not found: ${name}` };
-    const content = await this.app.vault.read(file);
-    return { success: true, data: content };
-  }
-
   private buildSystemPrompt(): string {
     const s = this.plugin.settings;
     const rulesStr = s.pathRules.filter(r => r.path.length > 0)
-      .map(r => '  - ' + r.path + ' \u2192 ' + r.permission).join('\\n');
-    const permBlock = '## Current Permission Mode\\nGlobal: ' + this.currentPermission + '\\n'
-      + (rulesStr ? 'Path Rules:\\n' + rulesStr : 'No path-specific rules configured.');
-    return s.systemPrompt + '\\n\\n' + permBlock;
+      .map(r => `  - ${r.path} → ${r.permission}`).join('\n');
+    const permBlock = `## Current Permission Mode
+Global: ${this.currentPermission}
+${rulesStr ? `Path Rules:\n${rulesStr}` : 'No path-specific rules configured.'}`;
+    return `${s.systemPrompt}\n\n${permBlock}`;
   }
 }
