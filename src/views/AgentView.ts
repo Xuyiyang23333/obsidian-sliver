@@ -135,7 +135,7 @@ export class AgentView extends ItemView {
       onToolProgress: (n, s, r) => this.onToolProgress(n, s, r),
       onConfirmationRequest: (n, a) => new Promise(r => this.showConfirm(n, a, r)),
       onAssistantChunk: (t) => this.onAssistantChunk(t),
-      onAssistantComplete: () => this.finalizeBubble(),
+      onAssistantComplete: () => { this.finalizeBubble(); this.repurposeReasoningIfNeeded(); },
       onError: (e) => {
         this.sendBtn.setText('Send'); this.sendBtn.removeClass('agent-send-cancel');
         this.finalizeBubble(); this.addErrorMessage(e);
@@ -382,6 +382,28 @@ export class AgentView extends ItemView {
       this.reasoningContentDiv.style.display = 'none';
       this.reasoningToggle.setText('💭 Show reasoning');
     }
+  }
+
+  /** When model put the answer in reasoning_content, move it to the message bubble */
+  private repurposeReasoningIfNeeded(): void {
+    if (this.currentBubble || !this.reasoningContentDiv || !this.pendingReasoning) return;
+    // Bubble is empty but reasoning section has text — the answer is in reasoning
+    this.reasoningContentDiv.parentElement?.remove();
+    this.reasoningContentDiv = null;
+    this.reasoningToggle = null;
+    this.needReasoningSep = false;
+    // Render the last message from context as a static bubble
+    const ctx = this.agentCore.getSessionManager().getCurrentContext();
+    for (let i = ctx.length - 1; i >= 0; i--) {
+      if (ctx[i].role === 'assistant' && ctx[i].content) {
+        const bubble = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-agent' });
+        MarkdownRenderer.render(this.app, ctx[i].content, bubble, '', this.mdComponent);
+        this.addActionsBar(bubble, ctx[i].content, i);
+        this.scrollBottom();
+        break;
+      }
+    }
+    this.pendingReasoning = '';
   }
 
   private autoResizeInput(): void {
