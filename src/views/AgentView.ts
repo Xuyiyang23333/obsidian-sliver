@@ -117,10 +117,18 @@ export class AgentView extends ItemView {
     this.needReasoningSep = false;
     this.bubbleReceivedContent = false;
 
+    // Remove stale system prompt if setting was toggled off mid-conversation
+    if (!this.plugin.settings.showSystemPrompt) {
+      this.messagesContainer.querySelectorAll('.agent-system-prompt').forEach(el => el.remove());
+    }
+
     const sm = this.agentCore.getSessionManager();
     if (this.pendingNewSession || !sm.getCurrentSessionName()) {
       await sm.createSession();
       this.messagesContainer.empty();
+      if (this.plugin.settings.showSystemPrompt) {
+        this.addSystemMessage(this.plugin.settings.systemPrompt, 'agent-system-prompt');
+      }
       this.pendingNewSession = false;
     }
     this.inputEl.value = '';
@@ -154,7 +162,12 @@ export class AgentView extends ItemView {
         this.sendBtn.setText('Send'); this.sendBtn.removeClass('agent-send-cancel');
         this.finalizeBubble(); this.addErrorMessage(e);
       },
-      onContextCompressed: () => this.addSystemMessage('Context compressed.'),
+      onContextCompressed: () => {
+        if (this.plugin.settings.showContextNotices) this.addSystemMessage('Context compressed.');
+      },
+      onSystemMessage: (content) => {
+        if (this.plugin.settings.showContextNotices) this.addSystemMessage(content);
+      },
     };
   }
 
@@ -166,8 +179,10 @@ export class AgentView extends ItemView {
     if (idx >= 0) this.addActionsBar(el, content, idx);
   }
 
-  private addSystemMessage(content: string): void {
-    const div = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-system' });
+  private addSystemMessage(content: string, extraCls?: string): void {
+    const div = this.messagesContainer.createDiv({
+      cls: 'agent-message agent-message-system' + (extraCls ? ' ' + extraCls : ''),
+    });
     MarkdownRenderer.render(this.app, content, div, '', this.mdComponent);
     this.scrollBottom();
   }
@@ -329,6 +344,12 @@ export class AgentView extends ItemView {
 
   private reloadCurrentMessages(): void {
     this.messagesContainer.empty();
+    
+    // Show system prompt at top if enabled
+    if (this.plugin.settings.showSystemPrompt) {
+      this.addSystemMessage(this.plugin.settings.systemPrompt, 'agent-system-prompt');
+    }
+    
     const ctx = this.agentCore.getSessionManager().getCurrentContext();
     for (let i = 0; i < ctx.length; i++) {
       const m = ctx[i];
@@ -367,7 +388,7 @@ export class AgentView extends ItemView {
           }
         }
       } else if (m.role === 'system') {
-        this.addSystemMessage(m.content);
+        if (this.plugin.settings.showContextNotices) this.addSystemMessage(m.content);
       }
     }
     this.scrollBottom();
