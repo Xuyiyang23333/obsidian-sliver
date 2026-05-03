@@ -243,16 +243,9 @@ export class AgentCore {
 
         if (chunk.finishReason === 'stop') {
           if (!gotUsage) this.sessionManager.estimateTokens();
-          // If the model put the answer in reasoning instead of content, use it
-          const finalContent = responseContent || reasoningContent || '';
-          const finalReasoning = responseContent ? reasoningContent : '';
           await this.sessionManager.addAssistantMessage({
-            role: 'assistant', content: finalContent, reasoning_content: finalReasoning,
+            role: 'assistant', content: responseContent, reasoning_content: reasoningContent,
           });
-          if (!responseContent && reasoningContent) {
-            // Stream reasoning as content since the model didn't output content separately
-            this.callbacks.onAssistantChunk?.(reasoningContent);
-          }
           await this.sessionManager.saveToDisk();
           await this.sessionManager.saveToMarkdown();
           this.callbacks.onAssistantComplete?.();
