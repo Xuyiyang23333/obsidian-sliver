@@ -1,0 +1,526 @@
+/*
+
+This CSS file will be included with your plugin, and
+available in the app when your plugin is enabled.
+
+If your plugin does not need CSS, delete this file.
+
+*/
+
+/* Agent Chat Panel */
+.agent-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  position: relative;
+}
+
+/* Session label (browser-tab style) */
+.agent-session-label {
+  flex: 1;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-session-label:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Session popup menu (inside header, absolute positioned) */
+.agent-session-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.agent-session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.agent-session-item:last-child {
+  border-bottom: none;
+}
+
+.agent-session-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.agent-session-active {
+  color: var(--interactive-accent);
+  font-weight: var(--font-semibold);
+}
+
+.agent-session-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-session-item-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.agent-session-item:hover .agent-session-item-del {
+  opacity: 1;
+}
+
+.agent-session-item-del:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-error);
+}
+
+.agent-session-del-confirm {
+  color: var(--text-error) !important;
+  opacity: 1 !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+.agent-session-new {
+  color: var(--text-accent);
+  font-weight: var(--font-semibold);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.agent-header-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.agent-header-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.agent-header-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.agent-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Markdown rendered messages */
+.agent-message {
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 85%;
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+/* Action bar (📋 ✏️ 🗑️) below each message */
+.agent-actions-bar {
+  display: flex;
+  gap: 0;
+  justify-content: flex-end;
+  padding: 0;
+  margin: 0 0 2px 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.agent-message:hover + .agent-actions-bar,
+.agent-actions-bar:hover {
+  opacity: 1;
+}
+
+.agent-action-btn {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  padding: 1px 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.agent-action-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.agent-action-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.agent-action-btn:only-child {
+  border-radius: 4px;
+}
+
+.agent-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.agent-action-confirm {
+  color: var(--text-error) !important;
+}
+
+/* Edit textarea and buttons */
+.agent-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-edit-input {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  font-family: var(--font-text);
+}
+
+.agent-edit-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.agent-edit-save {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: none;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.agent-edit-cancel {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.agent-message p {
+  margin: 0 0 6px 0;
+}
+
+.agent-message p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-message ul, .agent-message ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.agent-message code {
+  background: var(--code-background);
+  font-size: var(--font-smaller);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.agent-message pre {
+  background: var(--code-background);
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.agent-message blockquote {
+  border-left: 3px solid var(--background-modifier-border);
+  margin: 6px 0;
+  padding-left: 10px;
+  color: var(--text-muted);
+}
+
+.agent-message-user {
+  align-self: flex-end;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.agent-message-user code {
+  background: rgba(255,255,255,0.2);
+}
+
+.agent-message-agent {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.agent-message-system {
+  align-self: center;
+  background: var(--background-modifier-success);
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+  max-width: 100%;
+  text-align: center;
+}
+
+.agent-message-error {
+  align-self: center;
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Thinking Section */
+.agent-tool-row {
+  padding: 3px 0 3px 18px;
+  font-family: var(--font-monospace);
+  cursor: default;
+}
+
+/* Tool progress container */
+.agent-tools {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
+  padding: 2px 0 6px 12px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+}
+
+.agent-tool-row.tool-running { color: var(--text-muted); }
+.agent-tool-row.tool-done    { color: var(--text-accent); }
+.agent-tool-row.tool-error   { color: var(--text-error); }
+
+.agent-tool-clickable { cursor: pointer; }
+.agent-tool-clickable:hover { color: var(--text-normal); }
+
+.agent-tool-result {
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Reasoning toggle inside message bubbles */
+.agent-reasoning-toggle {
+  font-size: var(--font-smaller);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 0;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.agent-reasoning-toggle:hover {
+  color: var(--text-normal);
+}
+
+.agent-reasoning-content {
+  font-size: var(--font-smaller);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.5;
+}
+
+/* Wrapper for the single reasoning toggle (replaces old thinking section) */
+.agent-reasoning-wrapper {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
+  padding: 2px 0;
+}
+
+/* Confirmation Dialog */
+.agent-confirm-dialog {
+  align-self: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-confirm-message {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.agent-confirm-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.agent-confirm-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.agent-confirm-btn:hover {
+  filter: brightness(1.1);
+}
+
+.agent-confirm-deny {
+  border-color: var(--text-error);
+  color: var(--text-error);
+}
+
+.agent-confirm-allow {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+.agent-confirm-session {
+  border-color: var(--text-accent);
+  color: var(--text-accent);
+}
+
+/* Input Area */
+.agent-input-container {
+  padding: 8px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* Context usage bar (footer below input) */
+.agent-ctx-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  cursor: default;
+}
+
+.agent-ctx-track {
+  flex: 1;
+  height: 4px;
+  background: var(--background-modifier-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.agent-ctx-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--interactive-accent);
+  transition: width 0.3s, background 0.3s;
+}
+
+.agent-ctx-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.agent-input {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: var(--font-ui-small);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  line-height: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.agent-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.agent-send-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  height: 36px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.agent-send-btn:hover {
+  filter: brightness(1.1);
+}
+
+.agent-send-cancel {
+  background: var(--text-error);
+}
