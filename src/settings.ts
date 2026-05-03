@@ -28,6 +28,8 @@ export interface AgentSettings {
   thinkingMode: boolean;
   reasoningEffort: ReasoningEffort;
   systemPrompt: string;
+  showSystemPrompt: boolean;
+  showContextNotices: boolean;
 }
 
 export const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant integrated into Obsidian. Your purpose is to help the user manage their Obsidian vault through conversation.
@@ -53,6 +55,8 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   thinkingMode: true,
   reasoningEffort: 'high',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  showSystemPrompt: false,
+  showContextNotices: true,
 };
 
 export class AgentSettingTab extends PluginSettingTab {
@@ -204,6 +208,26 @@ export class AgentSettingTab extends PluginSettingTab {
 
     // System Prompt
     containerEl.createEl('h3', { text: 'System Prompt' });
+
+    new Setting(containerEl)
+      .setName('Show system prompt in chat')
+      .setDesc('Display the system prompt at the top of each conversation')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showSystemPrompt)
+        .onChange(async (value) => {
+          this.plugin.settings.showSystemPrompt = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Show context notices')
+      .setDesc('Display dynamic notices in chat (active file changes, permission changes, etc.)')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showContextNotices)
+        .onChange(async (value) => {
+          this.plugin.settings.showContextNotices = value;
+          await this.plugin.saveSettings();
+        }));
 
     new Setting(containerEl)
       .setName('Custom System Prompt')

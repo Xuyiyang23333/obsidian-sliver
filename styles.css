@@ -315,7 +315,7 @@ If your plugin does not need CSS, delete this file.
 .agent-message-system {
   align-self: center;
   background: var(--background-modifier-success);
-  color: var(--text-muted);
+  color: var(--text-normal);
   font-size: var(--font-smaller);
   max-width: 100%;
   text-align: center;

@@ -18,6 +18,8 @@ export type AgentEventCallback = {
   onAssistantComplete?: () => void;
   onError?: (error: string) => void;
   onContextCompressed?: () => void;
+  /** A system message was appended to the context (e.g. permission change, active file notice) */
+  onSystemMessage?: (content: string) => void;
 };
 
 export class AgentCore {
@@ -26,6 +28,7 @@ export class AgentCore {
   private sessionManager: SessionManager;
   private callbacks: AgentEventCallback = {};
   private currentPermission: GlobalPermission;
+  private lastActiveFilePath: string = '';
   private _isProcessing: boolean = false;
   private _cancelled: boolean = false;
   private abortController: AbortController | null = null;
@@ -73,6 +76,20 @@ export class AgentCore {
 
     try {
       if (!skipAdd) await this.sessionManager.addUserMessage(content);
+
+      // Notify model about active file (model decides whether to read it)
+      // Always insert when context is fresh; otherwise only when file changed
+      const activeFile = this.app.workspace.getActiveFile();
+      const activePath = activeFile?.path || '';
+      if (activePath) {
+        const contextFresh = this.sessionManager.getCurrentContext().length <= 1;
+        if (contextFresh || activePath !== this.lastActiveFilePath) {
+          const notice = `用户当前正在 Obsidian 中查看: ${activePath}`;
+          await this.sessionManager.appendSystemMessage(notice);
+          this.callbacks.onSystemMessage?.(notice);
+        }
+        this.lastActiveFilePath = activePath;
+      }
 
       const toolDefinitions = getToolDefinitions();
       const apiConfig = {
@@ -281,9 +298,9 @@ export class AgentCore {
     const old = this.currentPermission;
     this.currentPermission = newPermission;
     if (old !== newPermission) {
-      await this.sessionManager.appendSystemMessage(
-        `Permission mode changed from "${old}" to "${newPermission}".`
-      );
+      const notice = `Permission mode changed from "${old}" to "${newPermission}".`;
+      await this.sessionManager.appendSystemMessage(notice);
+      this.callbacks.onSystemMessage?.(notice);
     }
   }
 
