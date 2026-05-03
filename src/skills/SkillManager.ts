@@ -1,4 +1,4 @@
-import { App, normalizePath, Notice } from 'obsidian';
+import { App, normalizePath, Notice, TFolder } from 'obsidian';
 
 export const BUILTIN_SKILLS = [
   {
@@ -13,13 +13,81 @@ export const BUILTIN_SKILLS = [
     id: 'obsidian-bases',
     description: 'Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries.',
   },
+  {
+    id: 'vault-qa',
+    description: 'Answer user questions using vault content as the primary source with wikilink citations. Use when the user asks a knowledge question that might have relevant notes in the vault.',
+  },
 ];
 
 export class SkillManager {
   private app: App;
+  private availableSkills: { name: string; description: string }[] = [];
 
   constructor(app: App) {
     this.app = app;
+  }
+
+  /** Scan vault for skill directories and parse their frontmatter */
+  async discoverSkills(): Promise<void> {
+    const skillsDir = '_agents/skills';
+    const dir = this.app.vault.getFolderByPath(skillsDir);
+    if (!dir) { this.availableSkills = []; return; }
+
+    const skills: { name: string; description: string }[] = [];
+    for (const child of dir.children) {
+      if (child instanceof TFolder) {
+        const skillFile = this.app.vault.getFileByPath(normalizePath(`${skillsDir}/${child.name}/SKILL.md`));
+        if (skillFile) {
+          const content = await this.app.vault.read(skillFile);
+          const fm = this.parseFrontmatter(content);
+          // Use directory name as identifier (load_skill resolves by directory)
+          const description = fm.description || '';
+          if (description) {
+            skills.push({ name: child.name, description });
+          }
+        }
+      }
+    }
+    this.availableSkills = skills;
+  }
+
+  /** Get all discovered skills (name + description) for the tool description */
+  getAvailableSkills(): { name: string; description: string }[] {
+    // Use filesystem results; fall back to built-in list so agent always
+    // knows what's available even before Deploy Skills is clicked.
+    if (this.availableSkills.length > 0) return this.availableSkills;
+    return BUILTIN_SKILLS.map(s => ({ name: s.id, description: s.description }));
+  }
+
+  /** Simple YAML frontmatter parser (--- … ---).
+   *  Handles single-line values and indented block continuations (|, >). */
+  private parseFrontmatter(content: string): { name?: string; description?: string } {
+    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!match) return {};
+    const fm: { name?: string; description?: string } = {};
+    const lines = match[1].split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(\w[\w-]*):\s*(.*)/);
+      if (!m) continue;
+      const key = m[1].toLowerCase();
+      if (key !== 'name' && key !== 'description') continue;
+      let value = m[2].trim();
+      // Block scalar indicator (|, >, |-, >-) — collect indented continuation lines
+      if (/^[|>][-]?$/.test(value) || value === '') {
+        value = '';
+        i++;
+        while (i < lines.length) {
+          const line = lines[i];
+          if (!line.startsWith('  ') && !line.startsWith('\t') && line.trim() !== '') break;
+          if (value) value += ' ';
+          value += line.trim();
+          i++;
+        }
+        i--;
+      }
+      fm[key] = value.trim();
+    }
+    return fm;
   }
 
   async loadSkill(name: string): Promise<{ success: boolean; data?: unknown; error?: string }> {
@@ -47,6 +115,7 @@ export class SkillManager {
     }
 
     new Notice(`Deployed ${BUILTIN_SKILLS.length} skills to ${skillsDir}/`);
+    await this.discoverSkills();
   }
 }
 
@@ -202,5 +271,29 @@ formulas:
 
 - \`count(tasks)\` — count items in a relation property
 - \`date(today) + 7\` — date arithmetic
+`,
+
+  'vault-qa': `---
+name: vault-qa
+description: Answer user questions using vault content as the primary source, with wikilink citations. Use when the user asks a knowledge question that might have relevant notes in the vault.
+---
+
+# Vault-Aware Q&A
+
+## When to Use
+
+The user asks something you don't know the answer to, or that might have related notes in their vault.
+
+## Workflow
+
+1. **Search** — Call \`search_files\` with keywords from the question
+2. **Read** — Call \`read_file\` on the 2–3 most relevant results
+3. **Answer** — Prioritize vault content over your own knowledge
+4. **Cite** — Every claim sourced from the vault gets a wikilink: \`[[path/to/note]]\`
+5. **Disclose** — If supplementing with general knowledge, make it clear which parts come from the vault and which don't
+
+## Conflict Resolution
+
+Vault content takes priority over your training knowledge. If they disagree, point it out and follow the vault.
 `,
 };

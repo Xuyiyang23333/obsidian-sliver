@@ -156,7 +156,7 @@ export async function createNote(ctx: ToolContext, path: string, content: string
   return { success: true, data: { path } };
 }
 
-export function getToolDefinitions(): ToolDefinition[] {
+export function getToolDefinitions(availableSkills?: { name: string; description: string }[]): ToolDefinition[] {
   return [
     {
       type: 'function',
@@ -266,7 +266,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       type: 'function',
       function: {
         name: 'load_skill',
-        description: 'Load a skill by name to gain specialized knowledge (e.g. obsidian-markdown, json-canvas). Use when you need to know about Obsidian-specific syntax or formats.',
+        description: buildSkillDescription(availableSkills),
         parameters: {
           type: 'object',
           properties: {
@@ -277,4 +277,16 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
   ];
+}
+
+function buildSkillDescription(
+  skills?: { name: string; description: string }[],
+): string {
+  if (!skills || skills.length === 0) {
+    return 'Load a skill by name to gain specialized knowledge or workflows.';
+  }
+  const list = skills
+    .map(s => `- ${s.name}: ${s.description}`)
+    .join('\n');
+  return `Load a skill by name to gain specialized knowledge or workflows. Available:\n${list}`;
 }
