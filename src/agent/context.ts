@@ -1,5 +1,5 @@
 import { App, TFile, normalizePath } from 'obsidian';
-import { ChatMessage } from '../utils/api';
+import { ChatMessage, chatCompletionStream } from '../utils/api';
 import ObsidianAgentPlugin from '../main';
 
 export interface SessionData {
@@ -96,6 +96,19 @@ export class SessionManager {
     session.tokenCount = promptTokens;
   }
 
+  /** Estimate token count from context when API doesn't return usage (~4 chars per token) */
+  estimateTokens(): number {
+    const session = this.sessions.get(this.currentSession);
+    if (!session) return 0;
+    let chars = 0;
+    for (const msg of session.context) {
+      chars += msg.content.length;
+      if (msg.reasoning_content) chars += msg.reasoning_content.length;
+      if (msg.tool_calls) chars += JSON.stringify(msg.tool_calls).length;
+    }
+    return Math.max(1, Math.ceil(chars / 4));
+  }
+
   needsCompression(): boolean {
     const session = this.sessions.get(this.currentSession);
     if (!session) return false;
@@ -103,19 +116,63 @@ export class SessionManager {
     return session.tokenCount > threshold;
   }
 
-  async compressContext(): Promise<void> {
+  async compressContext(apiConfig: { endpoint: string; apiKey: string; model: string }): Promise<void> {
     const session = this.sessions.get(this.currentSession);
-    if (!session || session.context.length < 6) return;
+    if (!session || session.context.length <= 5) return;
 
-    const earlyMessages = session.context.slice(0, -5);
-    const recentMessages = session.context.slice(-5);
+    const keepCount = 5;
+    const toCompress = session.context.slice(0, -keepCount);
+    const recent = session.context.slice(-keepCount);
 
-    const summary = `[Previous conversation summarized: ${earlyMessages.length} messages compressed]`;
+    const conversationText = toCompress.map(msg => this.formatMessageForSummary(msg)).join('\n\n');
 
-    session.context = [
-      { role: 'system', content: summary },
-      ...recentMessages,
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'Summarize the following conversation. Keep all key facts, decisions, file operations, and important context. Be concise but complete. Output only the summary.' },
+      { role: 'user', content: `Conversation:\n\n${conversationText}\n\nProvide a concise summary.` },
     ];
+
+    try {
+      let summary = '';
+      for await (const chunk of chatCompletionStream(messages, [], {
+        endpoint: apiConfig.endpoint,
+        apiKey: apiConfig.apiKey,
+        model: apiConfig.model,
+        thinkingMode: false,
+      })) {
+        if (chunk.contentDelta) summary += chunk.contentDelta;
+        if (chunk.done) break;
+      }
+      session.context = [
+        { role: 'system', content: `[Previous conversation summary:]\n${summary.trim()}` },
+        ...recent,
+      ];
+    } catch {
+      // Fallback: simple summary if LLM call fails
+      session.context = [
+        { role: 'system', content: `[Previous conversation summarized: ${toCompress.length} messages compressed]` },
+        ...recent,
+      ];
+    }
+  }
+
+  private formatMessageForSummary(msg: ChatMessage): string {
+    switch (msg.role) {
+      case 'user':
+        return `User: ${msg.content}`;
+      case 'assistant': {
+        let text = msg.content || '';
+        if (msg.tool_calls) {
+          for (const tc of msg.tool_calls) {
+            text += `\n[Tool call: ${tc.function.name}(${tc.function.arguments})]`;
+          }
+        }
+        return `Agent: ${text}`;
+      }
+      case 'tool':
+        return `[Tool result: ${msg.content.substring(0, 500)}]`;
+      case 'system':
+        return `[System: ${msg.content}]`;
+    }
   }
 
   async saveToDisk(): Promise<void> {
@@ -195,9 +252,11 @@ export class SessionManager {
     const lines: string[] = [];
     for (const msg of session.context) {
       if (msg.role === 'user') {
-        lines.push(`**User**: ${msg.content}`);
+        lines.push('## User');
+        lines.push(msg.content);
       } else if (msg.role === 'assistant' && msg.content) {
-        lines.push(`**Agent**: ${msg.content}`);
+        lines.push('## Agent');
+        lines.push(msg.content);
       }
       lines.push('');
     }
@@ -228,31 +287,28 @@ export class SessionManager {
     let currentContent: string[] = [];
 
     for (const line of lines) {
-      const userMatch = line.match(/^\*\*User\*\*:\s*(.*)/);
-      const agentMatch = line.match(/^\*\*Agent\*\*:\s*(.*)/);
+      const userMatch = line.match(/^## User$/);
+      const agentMatch = line.match(/^## Agent$/);
 
       if (userMatch) {
         if (currentRole && currentContent.length > 0) {
-          context.push({ role: currentRole, content: currentContent.join('\n') });
+          context.push({ role: currentRole, content: currentContent.join('\n').trimEnd() });
         }
         currentRole = 'user';
-        currentContent = [userMatch[1]];
+        currentContent = [];
       } else if (agentMatch) {
         if (currentRole && currentContent.length > 0) {
-          context.push({ role: currentRole, content: currentContent.join('\n') });
+          context.push({ role: currentRole, content: currentContent.join('\n').trimEnd() });
         }
         currentRole = 'assistant';
-        currentContent = [agentMatch[1]];
-      } else if (currentRole && line.trim()) {
+        currentContent = [];
+      } else if (currentRole) {
         currentContent.push(line);
-      } else if (currentRole && !line.trim()) {
-        // Empty line within a message
-        currentContent.push('');
       }
     }
 
     if (currentRole && currentContent.length > 0) {
-      context.push({ role: currentRole, content: currentContent.join('\n') });
+      context.push({ role: currentRole, content: currentContent.join('\n').trimEnd() });
     }
 
     this.sessions.set(name, { context, tokenCount: 0 });
@@ -331,7 +387,7 @@ export class SessionManager {
     const session = this.sessions.get(this.currentSession);
     if (!session || index < 0 || index >= session.context.length) return;
     session.context = session.context.slice(0, index);
-    session.tokenCount = 0;
+    session.tokenCount = this.estimateTokens();
   }
 
   /** Edit the content of a message at index */
@@ -341,7 +397,7 @@ export class SessionManager {
     session.context[index] = { ...session.context[index], content };
     // Truncate everything after the edited message
     session.context = session.context.slice(0, index + 1);
-    session.tokenCount = 0;
+    session.tokenCount = this.estimateTokens();
   }
 
   private generateDefaultName(): string {

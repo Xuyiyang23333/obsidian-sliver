@@ -21,7 +21,9 @@ export function checkFilePermission(
 
   for (const rule of sortedRules) {
     const rulePath = rule.path.replace(/\\/g, '/').replace(/\/+$/, '');
-    if (normalizedPath.startsWith(rulePath) || normalizedPath === rulePath) {
+    const matched = normalizedPath.startsWith(rulePath) &&
+      (normalizedPath.length === rulePath.length || normalizedPath[rulePath.length] === '/');
+    if (matched) {
       switch (rule.permission) {
         case 'denied':
           return { allowed: false, reason: `Access denied to path: ${rulePath}`, requiresConfirmation: false };
