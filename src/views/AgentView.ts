@@ -109,6 +109,14 @@ export class AgentView extends ItemView {
     if (this.agentCore.isProcessing) return;
     const text = this.inputEl.value.trim();
     if (!text) return;
+
+    // Reset per-turn state
+    this.reasoningToggle = null;
+    this.reasoningContentDiv = null;
+    this.pendingReasoning = '';
+    this.needReasoningSep = false;
+    this.bubbleReceivedContent = false;
+
     const sm = this.agentCore.getSessionManager();
     if (this.pendingNewSession || !sm.getCurrentSessionName()) {
       await sm.createSession();
