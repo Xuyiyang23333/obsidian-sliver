@@ -55,6 +55,7 @@ export class AgentCore {
 
   async initialize(): Promise<void> {
     await this.sessionManager.loadFromDisk();
+    await this.plugin.skillManager.discoverSkills();
   }
 
   getToolContext(): tools.ToolContext {
@@ -77,6 +78,9 @@ export class AgentCore {
     try {
       if (!skipAdd) await this.sessionManager.addUserMessage(content);
 
+      // Refresh skill discovery (picks up custom skills added mid-session)
+      await this.plugin.skillManager.discoverSkills();
+
       // Notify model about active file (model decides whether to read it)
       // Always insert when context is fresh; otherwise only when file changed
       const activeFile = this.app.workspace.getActiveFile();
@@ -91,7 +95,9 @@ export class AgentCore {
         this.lastActiveFilePath = activePath;
       }
 
-      const toolDefinitions = getToolDefinitions();
+      const toolDefinitions = getToolDefinitions(
+        this.plugin.skillManager.getAvailableSkills(),
+      );
       const apiConfig = {
         endpoint: this.plugin.settings.apiEndpoint,
         apiKey: this.plugin.settings.apiKey,
