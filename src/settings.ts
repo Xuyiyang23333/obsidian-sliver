@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import ObsidianAgentPlugin from './main';
 
 function parseTokenValue(input: string): number | null {
@@ -100,16 +100,62 @@ export class AgentSettingTab extends PluginSettingTab {
         });
       });
 
+    let modelText: any;
+    let modelDropdown: any;
+
     new Setting(containerEl)
       .setName('Model')
       .setDesc('Model name (e.g. deepseek-chat)')
-      .addText(text => text
-        .setPlaceholder('deepseek-chat')
-        .setValue(this.plugin.settings.model)
-        .onChange(async (value) => {
+      .addButton(button => button
+        .setButtonText('获取')
+        .setTooltip('Fetch available models from the API endpoint')
+        .onClick(async () => {
+          button.setButtonText('...');
+          button.setDisabled(true);
+          try {
+            const endpoint = this.plugin.settings.apiEndpoint.replace(/\/+$/, '');
+            const resp = await fetch(`${endpoint}/models`, {
+              headers: { Authorization: `Bearer ${this.plugin.settings.apiKey}` },
+            });
+            if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+            const json = await resp.json();
+            const models: string[] = (json.data || [])
+              .map((m: any) => m.id)
+              .filter((id: string) => typeof id === 'string')
+              .sort();
+            modelDropdown.selectEl.empty();
+            modelDropdown.addOption('', '— select —');
+            for (const id of models) {
+              modelDropdown.addOption(id, id);
+            }
+            modelDropdown.setValue(this.plugin.settings.model || '');
+          } catch (e) {
+            new Notice(`Failed to fetch models: ${(e as Error).message}`);
+          }
+          button.setButtonText('获取');
+          button.setDisabled(false);
+        }))
+      .addDropdown(dropdown => {
+        modelDropdown = dropdown;
+        dropdown.addOption('', '— select —');
+        dropdown.setValue('');
+        dropdown.onChange(async (value) => {
+          if (value && modelText) {
+            this.plugin.settings.model = value;
+            modelText.setValue(value);
+            await this.plugin.saveSettings();
+          }
+        });
+      })
+      .addText(text => {
+        modelText = text;
+        text.setPlaceholder('deepseek-chat');
+        text.setValue(this.plugin.settings.model);
+        text.onChange(async (value) => {
           this.plugin.settings.model = value;
           await this.plugin.saveSettings();
-        }));
+        });
+      });
 
     // Thinking Mode
     containerEl.createEl('h3', { text: 'Thinking Mode' });
