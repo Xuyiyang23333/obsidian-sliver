@@ -31,6 +31,7 @@ export class AgentView extends ItemView {
   private pendingReasoning = '';
   private needReasoningSep = false;
   private pendingNewSession = false;
+  private bubbleReceivedContent = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
@@ -122,7 +123,12 @@ export class AgentView extends ItemView {
     this.agentCore.setCallbacks(this.getCallbacks());
     await this.agentCore.processUserMessage(text);
     this.finalizeBubble();
-    this.collapseReasoning();
+    // If no content was streamed to the bubble (answer was in reasoning), rebuild from context
+    if (this.bubbleReceivedContent) {
+      this.collapseReasoning();
+    } else {
+      this.reloadCurrentMessages();
+    }
     this.sendBtn.setText('Send');
     this.sendBtn.removeClass('agent-send-cancel');
     this.refreshSessionDropdown();
@@ -135,7 +141,7 @@ export class AgentView extends ItemView {
       onToolProgress: (n, s, r) => this.onToolProgress(n, s, r),
       onConfirmationRequest: (n, a) => new Promise(r => this.showConfirm(n, a, r)),
       onAssistantChunk: (t) => this.onAssistantChunk(t),
-      onAssistantComplete: () => { this.finalizeBubble(); this.repurposeReasoningIfNeeded(); },
+      onAssistantComplete: () => this.finalizeBubble(),
       onError: (e) => {
         this.sendBtn.setText('Send'); this.sendBtn.removeClass('agent-send-cancel');
         this.finalizeBubble(); this.addErrorMessage(e);
@@ -294,7 +300,11 @@ export class AgentView extends ItemView {
     this.agentCore.setCallbacks(this.getCallbacks());
     this.agentCore.processUserMessage(userText, true).then(() => {
       this.finalizeBubble();
-      this.collapseReasoning();
+      if (this.bubbleReceivedContent) {
+        this.collapseReasoning();
+      } else {
+        this.reloadCurrentMessages();
+      }
       this.sendBtn.setText('Send');
       this.sendBtn.removeClass('agent-send-cancel');
       this.refreshSessionDropdown();
@@ -384,28 +394,6 @@ export class AgentView extends ItemView {
     }
   }
 
-  /** When model put the answer in reasoning_content, move it to the message bubble */
-  private repurposeReasoningIfNeeded(): void {
-    if (this.currentBubble || !this.reasoningContentDiv || !this.pendingReasoning) return;
-    // Bubble is empty but reasoning section has text — the answer is in reasoning
-    this.reasoningContentDiv.parentElement?.remove();
-    this.reasoningContentDiv = null;
-    this.reasoningToggle = null;
-    this.needReasoningSep = false;
-    // Render the last message from context as a static bubble
-    const ctx = this.agentCore.getSessionManager().getCurrentContext();
-    for (let i = ctx.length - 1; i >= 0; i--) {
-      if (ctx[i].role === 'assistant' && ctx[i].content) {
-        const bubble = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-agent' });
-        MarkdownRenderer.render(this.app, ctx[i].content, bubble, '', this.mdComponent);
-        this.addActionsBar(bubble, ctx[i].content, i);
-        this.scrollBottom();
-        break;
-      }
-    }
-    this.pendingReasoning = '';
-  }
-
   private autoResizeInput(): void {
     this.inputEl.style.height = '';
     const h = this.inputEl.scrollHeight;
@@ -450,6 +438,7 @@ export class AgentView extends ItemView {
       this.bubbleContentDiv = this.currentBubble.createDiv({ cls: 'agent-bubble-content' });
     }
     this.bubbleText += text;
+    this.bubbleReceivedContent = true;
     if (this.bubbleContentDiv) {
       const parts = this.splitParagraphs(this.bubbleText);
       for (let i = 0; i < parts.length - 1; i++) {
@@ -623,6 +612,7 @@ export class AgentView extends ItemView {
     if (this.liveParaTimer !== null) { clearTimeout(this.liveParaTimer); this.liveParaTimer = null; }
     this.reasoningToggle = null; this.reasoningContentDiv = null;
     this.pendingReasoning = ''; this.needReasoningSep = false; this.pendingNewSession = false;
+    this.bubbleReceivedContent = false;
     this.closeSessionPopup();
   }
 
