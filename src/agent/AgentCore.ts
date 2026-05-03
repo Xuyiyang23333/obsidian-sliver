@@ -243,8 +243,11 @@ export class AgentCore {
 
         if (chunk.finishReason === 'stop') {
           if (!gotUsage) this.sessionManager.estimateTokens();
+          // When model puts answer in reasoning instead of content, swap them
+          const finalContent = responseContent || reasoningContent || '';
+          const finalReasoning = responseContent ? reasoningContent : '';
           await this.sessionManager.addAssistantMessage({
-            role: 'assistant', content: responseContent, reasoning_content: reasoningContent,
+            role: 'assistant', content: finalContent, reasoning_content: finalReasoning,
           });
           await this.sessionManager.saveToDisk();
           await this.sessionManager.saveToMarkdown();
@@ -261,9 +264,11 @@ export class AgentCore {
 
     // Stream ended without finish_reason
     if (!gotUsage) this.sessionManager.estimateTokens();
-    if (responseContent) {
+    const finalContent = responseContent || reasoningContent || '';
+    const finalReasoning = responseContent ? reasoningContent : '';
+    if (finalContent) {
       await this.sessionManager.addAssistantMessage({
-        role: 'assistant', content: responseContent, reasoning_content: reasoningContent,
+        role: 'assistant', content: finalContent, reasoning_content: finalReasoning,
       });
       await this.sessionManager.saveToDisk();
       await this.sessionManager.saveToMarkdown();
