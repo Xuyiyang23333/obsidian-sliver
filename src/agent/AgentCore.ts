@@ -295,21 +295,9 @@ export class AgentCore {
   private buildSystemPrompt(): string {
     const s = this.plugin.settings;
     const rulesStr = s.pathRules.filter(r => r.path.length > 0)
-      .map(r => `  - ${r.path} → ${r.permission}`).join('\n');
-
-    return `You are an AI assistant integrated into Obsidian...
-
-## Current Permission Mode
-Global: ${this.currentPermission}
-${rulesStr ? `Path Rules:\n${rulesStr}` : 'No path-specific rules configured.'}
-
-## Rules
-- If the permission mode is "read-only", you cannot modify any files.
-- If the permission mode is "ask-per-write", file modifications require user confirmation.
-- If the permission mode is "full-access", you can execute file operations autonomously.
-- Always tell the user what you're about to do before doing it.
-- Use loaded skills for specialized knowledge about Obsidian-specific formats.
-- Keep responses concise and in Chinese unless the user asks otherwise.
-- Use $...$ for inline math and $$...$$ for display math. Do NOT use \(...\) or \[...\].`;
+      .map(r => '  - ' + r.path + ' \u2192 ' + r.permission).join('\\n');
+    const permBlock = '## Current Permission Mode\\nGlobal: ' + this.currentPermission + '\\n'
+      + (rulesStr ? 'Path Rules:\\n' + rulesStr : 'No path-specific rules configured.');
+    return s.systemPrompt + '\\n\\n' + permBlock;
   }
 }

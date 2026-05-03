@@ -20,7 +20,19 @@ export interface AgentSettings {
   sessionDir: string;
   thinkingMode: boolean;
   reasoningEffort: ReasoningEffort;
+  systemPrompt: string;
 }
+
+export const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant integrated into Obsidian. Your purpose is to help the user manage their Obsidian vault through conversation.
+
+## Capabilities
+You can read, create, edit, delete, and search files inside the vault. You can also execute Obsidian commands and load specialized skills.
+
+## Rules
+- Always tell the user what you're about to do before doing it.
+- Use loaded skills for specialized knowledge about Obsidian-specific formats.
+- Keep responses concise and in Chinese unless the user asks otherwise.
+- Use $...$ for inline math and $$...$$ for display math. Do NOT use \(...\) or \[...\].`;
 
 export const DEFAULT_SETTINGS: AgentSettings = {
   apiEndpoint: 'https://api.deepseek.com/v1',
@@ -33,6 +45,7 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   sessionDir: '_agents',
   thinkingMode: true,
   reasoningEffort: 'high',
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
 };
 
 export class AgentSettingTab extends PluginSettingTab {
@@ -180,6 +193,31 @@ export class AgentSettingTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.sessionDir = value;
           await this.plugin.saveSettings();
+        }));
+
+    // System Prompt
+    containerEl.createEl('h3', { text: 'System Prompt' });
+
+    new Setting(containerEl)
+      .setName('Custom System Prompt')
+      .setDesc('The system prompt sent to the model on each request. Use this to customize the agent\'s behavior, role, or rules.')
+      .addTextArea(text => text
+        .setPlaceholder('Enter system prompt...')
+        .setValue(this.plugin.settings.systemPrompt)
+        .onChange(async (value) => {
+          this.plugin.settings.systemPrompt = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Reset to Default')
+      .setDesc('Restore the default system prompt')
+      .addButton(button => button
+        .setButtonText('Reset')
+        .onClick(async () => {
+          this.plugin.settings.systemPrompt = DEFAULT_SYSTEM_PROMPT;
+          await this.plugin.saveSettings();
+          this.display();
         }));
 
     // Skills
