@@ -1,0 +1,244 @@
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import ObsidianAgentPlugin from './main';
+
+export interface PathRule {
+  path: string;
+  permission: 'read-write' | 'read-only' | 'denied' | 'follow-global';
+}
+
+export type GlobalPermission = 'read-only' | 'ask-per-write' | 'full-access';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max';
+
+export interface AgentSettings {
+  apiEndpoint: string;
+  apiKey: string;
+  model: string;
+  contextLength: number;
+  reserveSpace: number;
+  globalPermission: GlobalPermission;
+  pathRules: PathRule[];
+  sessionDir: string;
+  thinkingMode: boolean;
+  reasoningEffort: ReasoningEffort;
+}
+
+export const DEFAULT_SETTINGS: AgentSettings = {
+  apiEndpoint: 'https://api.deepseek.com/v1',
+  apiKey: '',
+  model: 'deepseek-chat',
+  contextLength: 32768,
+  reserveSpace: 8192,
+  globalPermission: 'ask-per-write',
+  pathRules: [],
+  sessionDir: '_agents',
+  thinkingMode: true,
+  reasoningEffort: 'high',
+};
+
+export class AgentSettingTab extends PluginSettingTab {
+  plugin: ObsidianAgentPlugin;
+
+  constructor(app: App, plugin: ObsidianAgentPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    containerEl.createEl('h2', { text: 'Agent Settings' });
+
+    // API Configuration
+    containerEl.createEl('h3', { text: 'API Configuration' });
+
+    new Setting(containerEl)
+      .setName('API Endpoint')
+      .setDesc('OpenAI-compatible API endpoint')
+      .addText(text => text
+        .setPlaceholder('https://api.deepseek.com/v1')
+        .setValue(this.plugin.settings.apiEndpoint)
+        .onChange(async (value) => {
+          this.plugin.settings.apiEndpoint = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('API Key')
+      .setDesc('Your API key')
+      .addText(text => {
+        text.setPlaceholder('sk-...');
+        text.setValue(this.plugin.settings.apiKey);
+        text.inputEl.type = 'password';
+        text.onChange(async (value) => {
+          this.plugin.settings.apiKey = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Model')
+      .setDesc('Model name (e.g. deepseek-chat)')
+      .addText(text => text
+        .setPlaceholder('deepseek-chat')
+        .setValue(this.plugin.settings.model)
+        .onChange(async (value) => {
+          this.plugin.settings.model = value;
+          await this.plugin.saveSettings();
+        }));
+
+    // Thinking Mode
+    containerEl.createEl('h3', { text: 'Thinking Mode' });
+
+    new Setting(containerEl)
+      .setName('Enable Thinking Mode')
+      .setDesc('Let the model show its reasoning process (chain-of-thought) before answering')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.thinkingMode)
+        .onChange(async (value) => {
+          this.plugin.settings.thinkingMode = value;
+          await this.plugin.saveSettings();
+          this.display();
+        }));
+
+    if (this.plugin.settings.thinkingMode) {
+      new Setting(containerEl)
+        .setName('Reasoning Effort')
+        .setDesc('Controls how much effort the model spends on reasoning (low/medium map to high, xhigh maps to max)')
+        .addDropdown(dropdown => dropdown
+          .addOption('low', 'Low')
+          .addOption('medium', 'Medium')
+          .addOption('high', 'High')
+          .addOption('max', 'Max')
+          .setValue(this.plugin.settings.reasoningEffort)
+          .onChange(async (value) => {
+            this.plugin.settings.reasoningEffort = value as ReasoningEffort;
+            await this.plugin.saveSettings();
+          }));
+    }
+
+    // Context Management
+    containerEl.createEl('h3', { text: 'Context Management' });
+
+    new Setting(containerEl)
+      .setName('Context Length')
+      .setDesc('Maximum tokens for the model context window')
+      .addText(text => text
+        .setPlaceholder('32768')
+        .setValue(String(this.plugin.settings.contextLength))
+        .onChange(async (value) => {
+          const num = parseInt(value);
+          if (!isNaN(num) && num > 0) {
+            this.plugin.settings.contextLength = num;
+            await this.plugin.saveSettings();
+          }
+        }));
+
+    new Setting(containerEl)
+      .setName('Reserve Space')
+      .setDesc('Tokens to reserve for agent responses. Compression triggers when used + reserve > context length.')
+      .addText(text => text
+        .setPlaceholder('8192')
+        .setValue(String(this.plugin.settings.reserveSpace))
+        .onChange(async (value) => {
+          const num = parseInt(value);
+          if (!isNaN(num) && num > 0) {
+            this.plugin.settings.reserveSpace = num;
+            await this.plugin.saveSettings();
+          }
+        }));
+
+    // Permission Management
+    containerEl.createEl('h3', { text: 'Permission Management' });
+
+    new Setting(containerEl)
+      .setName('Global Permission Mode')
+      .setDesc('Default access level for all file operations')
+      .addDropdown(dropdown => dropdown
+        .addOption('read-only', 'Read Only')
+        .addOption('ask-per-write', 'Ask Per Write')
+        .addOption('full-access', 'Full Access')
+        .setValue(this.plugin.settings.globalPermission)
+        .onChange(async (value) => {
+          this.plugin.settings.globalPermission = value as GlobalPermission;
+          await this.plugin.saveSettings();
+        }));
+
+    // Path Rules
+    containerEl.createEl('h3', { text: 'Path Rules' });
+    this.renderPathRules(containerEl);
+
+    // Session Management
+    containerEl.createEl('h3', { text: 'Session Management' });
+
+    new Setting(containerEl)
+      .setName('Session Directory')
+      .setDesc('Directory in vault where session files are stored')
+      .addText(text => text
+        .setPlaceholder('_agents')
+        .setValue(this.plugin.settings.sessionDir)
+        .onChange(async (value) => {
+          this.plugin.settings.sessionDir = value;
+          await this.plugin.saveSettings();
+        }));
+
+    // Skills
+    containerEl.createEl('h3', { text: 'Skills' });
+
+    new Setting(containerEl)
+      .setName('Deploy Built-in Skills')
+      .setDesc('Copy built-in skill files to the skills directory')
+      .addButton(button => button
+        .setButtonText('Deploy Skills')
+        .onClick(async () => {
+          await this.plugin.deployBuiltinSkills();
+          new Notice('Skills deployed to _agents/skills/');
+        }));
+  }
+
+  private renderPathRules(containerEl: HTMLElement) {
+    const rules = this.plugin.settings.pathRules;
+
+    rules.forEach((rule, index) => {
+      new Setting(containerEl)
+        .addText(text => text
+          .setPlaceholder('path/to/folder')
+          .setValue(rule.path)
+          .onChange(async (value) => {
+            this.plugin.settings.pathRules[index].path = value;
+            await this.plugin.saveSettings();
+          }))
+        .addDropdown(dropdown => dropdown
+          .addOption('read-write', 'Read/Write')
+          .addOption('read-only', 'Read Only')
+          .addOption('denied', 'Denied')
+          .addOption('follow-global', 'Follow Global')
+          .setValue(rule.permission)
+          .onChange(async (value) => {
+            this.plugin.settings.pathRules[index].permission = value as PathRule['permission'];
+            await this.plugin.saveSettings();
+          }))
+        .addExtraButton(button => button
+          .setIcon('trash')
+          .setTooltip('Delete rule')
+          .onClick(async () => {
+            this.plugin.settings.pathRules.splice(index, 1);
+            await this.plugin.saveSettings();
+            this.display();
+          }));
+    });
+
+    new Setting(containerEl)
+      .addButton(button => button
+        .setButtonText('Add Rule')
+        .setCta()
+        .onClick(async () => {
+          this.plugin.settings.pathRules.push({
+            path: '',
+            permission: 'follow-global',
+          });
+          await this.plugin.saveSettings();
+          this.display();
+        }));
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "obsidian-agent",
+  "name": "Obsidian Agent",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "AI agent that can read, write, and manage your vault via chat.",
+  "author": "",
+  "authorUrl": "",
+  "fundingUrl": "",
+  "isDesktopOnly": false
+}
