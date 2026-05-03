@@ -1,6 +1,13 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import ObsidianAgentPlugin from './main';
 
+function parseTokenValue(input: string): number | null {
+  const v = input.trim().toLowerCase();
+  if (v.endsWith('k')) { const n = parseFloat(v.slice(0, -1)); return !isNaN(n) && n > 0 ? Math.round(n * 1000) : null; }
+  if (v.endsWith('m')) { const n = parseFloat(v.slice(0, -1)); return !isNaN(n) && n > 0 ? Math.round(n * 1000000) : null; }
+  const n = parseInt(v); return !isNaN(n) && n > 0 ? n : null;
+}
+
 export interface PathRule {
   path: string;
   permission: 'read-write' | 'read-only' | 'denied' | 'follow-global';
@@ -137,11 +144,11 @@ export class AgentSettingTab extends PluginSettingTab {
       .setName('Context Length')
       .setDesc('Maximum tokens for the model context window')
       .addText(text => text
-        .setPlaceholder('32768')
+        .setPlaceholder('32768 (or 32k)')
         .setValue(String(this.plugin.settings.contextLength))
         .onChange(async (value) => {
-          const num = parseInt(value);
-          if (!isNaN(num) && num > 0) {
+          const num = parseTokenValue(value);
+          if (num !== null) {
             this.plugin.settings.contextLength = num;
             await this.plugin.saveSettings();
           }
@@ -151,11 +158,11 @@ export class AgentSettingTab extends PluginSettingTab {
       .setName('Reserve Space')
       .setDesc('Tokens to reserve for agent responses. Compression triggers when used + reserve > context length.')
       .addText(text => text
-        .setPlaceholder('8192')
+        .setPlaceholder('8192 (or 8k)')
         .setValue(String(this.plugin.settings.reserveSpace))
         .onChange(async (value) => {
-          const num = parseInt(value);
-          if (!isNaN(num) && num > 0) {
+          const num = parseTokenValue(value);
+          if (num !== null) {
             this.plugin.settings.reserveSpace = num;
             await this.plugin.saveSettings();
           }
