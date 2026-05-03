@@ -64,6 +64,17 @@ export class AgentView extends ItemView {
 
     this.messagesContainer = container.createDiv({ cls: 'agent-messages' });
 
+    // Handle wikilink clicks — MarkdownRenderer doesn't wire these in custom views
+    this.messagesContainer.addEventListener('click', (e) => {
+      const link = (e.target as HTMLElement).closest('.internal-link') as HTMLElement | null;
+      if (link) {
+        e.preventDefault();
+        e.stopPropagation();
+        const href = link.getAttribute('data-href') || link.getAttribute('href') || '';
+        if (href) this.app.workspace.openLinkText(href, '', false);
+      }
+    });
+
     const inputContainer = container.createDiv({ cls: 'agent-input-container' });
 
     this.inputEl = inputContainer.createEl('textarea', {
