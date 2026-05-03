@@ -547,11 +547,17 @@ export class AgentView extends ItemView {
 
   private toggleSessionPopup(): void {
     if (this.agentCore.isProcessing) return;
-    this.closeSessionPopup();
+    if (this.sessionPopup) { this.closeSessionPopup(); return; }
     const sm = this.agentCore.getSessionManager(); const names = sm.getSessionNames();
     const cur = this.pendingNewSession ? null : sm.getCurrentSessionName();
     const header = this.containerEl.querySelector('.agent-header'); if (!header) return;
     const popup = header.createDiv({ cls: 'agent-session-popup' }); this.sessionPopup = popup;
+
+    // New Session at top
+    const newItem = popup.createDiv({ cls: 'agent-session-item agent-session-new' });
+    newItem.setText('+ New Session');
+    newItem.addEventListener('click', () => { this.closeSessionPopup(); this.createNewSession(); });
+
     for (const name of names) {
       const item = popup.createDiv({ cls: 'agent-session-item' });
       if (name === cur) item.addClass('agent-session-active');
@@ -572,9 +578,6 @@ export class AgentView extends ItemView {
         }
       });
     }
-    const newItem = popup.createDiv({ cls: 'agent-session-item agent-session-new' });
-    newItem.setText('+ New Session');
-    newItem.addEventListener('click', () => { this.closeSessionPopup(); this.createNewSession(); });
     const closer = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
       if (!popup.contains(t) && t !== this.sessionLabel) { this.closeSessionPopup(); document.removeEventListener('click', closer); }
