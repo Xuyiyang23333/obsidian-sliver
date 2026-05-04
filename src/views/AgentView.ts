@@ -61,7 +61,7 @@ export class AgentView extends ItemView {
     settingsBtn.innerHTML = '⚙️'; settingsBtn.title = 'Settings';
     settingsBtn.addEventListener('click', () => {
       (this.app as any).setting.open();
-      (this.app as any).setting.openTabById('obsidian-agent');
+      (this.app as any).setting.openTabById('obsidian-sliver');
     });
 
     this.messagesContainer = container.createDiv({ cls: 'agent-messages' });

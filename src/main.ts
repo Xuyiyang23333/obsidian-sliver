@@ -73,6 +73,8 @@ export default class ObsidianAgentPlugin extends Plugin {
   }
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    // Merge with existing data to preserve sessions
+    const data = { ...(await this.loadData()), ...this.settings };
+    await this.saveData(data);
   }
 }
