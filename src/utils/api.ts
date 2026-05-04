@@ -131,7 +131,10 @@ export async function* chatCompletionStream(
   config: ApiConfig,
   signal?: AbortSignal,
 ): AsyncGenerator<StreamChunk> {
-  const url = `${config.endpoint.replace(/\/+$/, '')}/chat/completions`;
+  let url = config.endpoint.replace(/\/+$/, '');
+  if (!url.endsWith('/chat/completions')) {
+    url += '/chat/completions';
+  }
   const body = buildRequestBody(messages, tools, config, true);
 
   const response = await fetchWithRetry(url, {
