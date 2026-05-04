@@ -54,6 +54,7 @@ export async function writeFile(ctx: ToolContext, path: string, content: string)
 
 export async function editFile(ctx: ToolContext, path: string, oldText: string, newText: string): Promise<ToolResult> {
   path = cleanVaultPath(path);
+  if (!oldText) return { success: false, error: 'oldText cannot be empty' };
   const perm = ctx.checkPermission(path, 'write');
   if (!perm.allowed) return { success: false, error: perm.reason };
   if (perm.requiresConfirmation) {
