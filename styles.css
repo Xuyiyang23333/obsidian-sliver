@@ -156,7 +156,6 @@ If your plugin does not need CSS, delete this file.
 .agent-message {
   padding: 8px 12px;
   border-radius: 8px;
-  max-width: 85%;
   font-size: var(--font-ui-small);
   line-height: 1.5;
   word-wrap: break-word;
@@ -171,6 +170,7 @@ If your plugin does not need CSS, delete this file.
 
 .agent-message-wrapper-user {
   align-self: flex-end;
+  max-width: 85%;
 }
 
 .agent-message-wrapper-agent {
