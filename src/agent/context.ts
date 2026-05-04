@@ -176,28 +176,40 @@ export class SessionManager {
   }
 
   async saveToDisk(): Promise<void> {
-    const data: Record<string, SessionData> = {};
-    this.sessions.forEach((sessionData, name) => {
-      data[name] = sessionData;
-    });
+    try {
+      const data: Record<string, SessionData> = {};
+      this.sessions.forEach((sessionData, name) => {
+        data[name] = sessionData;
+      });
 
-    const existing = (await this.plugin.loadData()) || {};
-    (existing as Record<string, unknown>).sessions = data;
-    (existing as Record<string, unknown>).sessionOrder = this.sessionOrder;
-    await this.plugin.saveData(existing);
+      const existing = (await this.plugin.loadData()) || {};
+      (existing as Record<string, unknown>).sessions = data;
+      (existing as Record<string, unknown>).sessionOrder = this.sessionOrder;
+      await this.plugin.saveData(existing);
+    } catch {
+      console.warn('obsidian-sliver: failed to save data.json');
+    }
   }
 
   async loadFromDisk(): Promise<void> {
-    const data = (await this.plugin.loadData()) as { sessions?: Record<string, SessionData>; sessionOrder?: string[] } | null;
-    if (data?.sessions) {
+    const raw = await this.plugin.loadData().catch(() => {
+      console.warn('obsidian-sliver: data.json is corrupted, resetting');
+      return null;
+    });
+    if (!raw) {
+      await this.plugin.saveData({});
+      return;
+    }
+    const data = raw as { sessions?: Record<string, SessionData>; sessionOrder?: string[] };
+    if (data.sessions) {
       Object.entries(data.sessions).forEach(([name, sessionData]) => {
         this.sessions.set(name, sessionData);
       });
     }
 
     // Restore order from data.json, or derive from insertion order
-    if (data?.sessionOrder) {
-      this.sessionOrder = data.sessionOrder.filter(n => this.sessions.has(n));
+    if (data.sessionOrder) {
+      this.sessionOrder = data.sessionOrder.filter((n: string) => this.sessions.has(n));
     }
     // Add any sessions not in the restored order
     for (const name of this.sessions.keys()) {
