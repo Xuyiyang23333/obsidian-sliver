@@ -1,4 +1,4 @@
-import { App, TFile, TFolder } from 'obsidian';
+import { App, TFile, TFolder, normalizePath } from 'obsidian';
 import { PermissionResult } from './permissions';
 import { ToolDefinition } from '../utils/api';
 
@@ -14,7 +14,16 @@ export interface ToolResult {
   error?: string;
 }
 
+/** Strip leading / and \ which the model sometimes hallucinates for vault paths */
+function cleanVaultPath(p: string): string {
+  while (p.startsWith('/') || p.startsWith('\\')) {
+    p = p.slice(1);
+  }
+  return p.replace(/\\/g, '/');
+}
+
 export async function readFile(ctx: ToolContext, path: string): Promise<ToolResult> {
+  path = cleanVaultPath(path);
   const perm = ctx.checkPermission(path, 'read');
   if (!perm.allowed) return { success: false, error: perm.reason };
 
@@ -26,6 +35,7 @@ export async function readFile(ctx: ToolContext, path: string): Promise<ToolResu
 }
 
 export async function writeFile(ctx: ToolContext, path: string, content: string): Promise<ToolResult> {
+  path = cleanVaultPath(path);
   const perm = ctx.checkPermission(path, 'write');
   if (!perm.allowed) return { success: false, error: perm.reason };
   if (perm.requiresConfirmation) {
@@ -43,6 +53,7 @@ export async function writeFile(ctx: ToolContext, path: string, content: string)
 }
 
 export async function editFile(ctx: ToolContext, path: string, oldText: string, newText: string): Promise<ToolResult> {
+  path = cleanVaultPath(path);
   const perm = ctx.checkPermission(path, 'write');
   if (!perm.allowed) return { success: false, error: perm.reason };
   if (perm.requiresConfirmation) {
@@ -64,7 +75,7 @@ export async function editFile(ctx: ToolContext, path: string, oldText: string, 
 }
 
 export async function listFiles(ctx: ToolContext, path?: string): Promise<ToolResult> {
-  const targetPath = path || '';
+  const targetPath = cleanVaultPath(path || '');
   const perm = ctx.checkPermission(targetPath, 'read');
   if (!perm.allowed) return { success: false, error: perm.reason };
 
@@ -93,7 +104,7 @@ export async function searchFiles(ctx: ToolContext, query: string, path?: string
   const files = ctx.app.vault.getFiles();
   const results: { path: string; matches: string[]; truncated?: number }[] = [];
 
-  const searchPath = path ? path.replace(/\\/g, '/') : '';
+  const searchPath = path ? cleanVaultPath(path) : '';
   const targetFiles = searchPath
     ? files.filter(f => f.path.startsWith(searchPath))
     : files;
@@ -125,6 +136,7 @@ export async function searchFiles(ctx: ToolContext, query: string, path?: string
 }
 
 export async function deleteFile(ctx: ToolContext, path: string): Promise<ToolResult> {
+  path = cleanVaultPath(path);
   const perm = ctx.checkPermission(path, 'delete');
   if (!perm.allowed) return { success: false, error: perm.reason };
   if (perm.requiresConfirmation) {
@@ -140,6 +152,7 @@ export async function deleteFile(ctx: ToolContext, path: string): Promise<ToolRe
 }
 
 export async function createNote(ctx: ToolContext, path: string, content: string): Promise<ToolResult> {
+  path = cleanVaultPath(path);
   const perm = ctx.checkPermission(path, 'write');
   if (!perm.allowed) return { success: false, error: perm.reason };
   if (perm.requiresConfirmation) {
