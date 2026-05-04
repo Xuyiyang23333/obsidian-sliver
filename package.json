@@ -1,6 +1,6 @@
 {
   "name": "obsidian-sliver",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "AI agent plugin for Obsidian",
   "main": "main.js",
   "type": "module",
