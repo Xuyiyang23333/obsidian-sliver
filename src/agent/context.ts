@@ -306,12 +306,14 @@ export class SessionManager {
 
     const text = lines.join('\n');
     const existing = this.app.vault.getFileByPath(filePath);
-    if (existing) {
-      await this.app.vault.modify(existing, text);
-    } else {
-      try {
+    try {
+      if (existing) {
+        await this.app.vault.modify(existing, text);
+      } else {
         await this.app.vault.create(filePath, text);
-      } catch {}
+      }
+    } catch (e) {
+      console.warn('obsidian-sliver: failed to save session markdown', e);
     }
   }
 
