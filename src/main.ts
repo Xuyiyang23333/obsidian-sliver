@@ -42,7 +42,7 @@ export default class ObsidianAgentPlugin extends Plugin {
 
   async onunload() {
     if (this.agentCore) {
-      await this.agentCore.getSessionManager().saveToDisk();
+      await this.agentCore.getSessionManager().flushSaves();
     }
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_AGENT);
   }

@@ -13,6 +13,7 @@ export class SessionManager {
   private currentSession: string = '';
   private plugin: ObsidianAgentPlugin;
   private app: App;
+  private saveTimer: number | null = null;
 
   constructor(plugin: ObsidianAgentPlugin, app: App) {
     this.plugin = plugin;
@@ -176,6 +177,33 @@ export class SessionManager {
   }
 
   async saveToDisk(): Promise<void> {
+    this.schedulePersist();
+  }
+
+  async saveToMarkdown(): Promise<void> {
+    this.schedulePersist();
+  }
+
+  /** Cancel pending debounce and write immediately (call on plugin unload) */
+  async flushSaves(): Promise<void> {
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    await this.saveToDiskNow();
+    await this.saveToMarkdownNow();
+  }
+
+  private schedulePersist(): void {
+    if (this.saveTimer !== null) clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      this.saveTimer = null;
+      this.saveToDiskNow();
+      this.saveToMarkdownNow();
+    }, 2000);
+  }
+
+  private async saveToDiskNow(): Promise<void> {
     try {
       const sessionsObj: Record<string, SessionData> = {};
       this.sessions.forEach((sessionData, name) => {
@@ -242,7 +270,7 @@ export class SessionManager {
     }
   }
 
-  async saveToMarkdown(): Promise<void> {
+  private async saveToMarkdownNow(): Promise<void> {
     const session = this.sessions.get(this.currentSession);
     if (!session) return;
 
