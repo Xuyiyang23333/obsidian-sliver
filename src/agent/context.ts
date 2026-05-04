@@ -154,6 +154,7 @@ export class SessionManager {
         ...recent,
       ];
     }
+    session.tokenCount = this.estimateTokens();
   }
 
   private formatMessageForSummary(msg: ChatMessage): string {
