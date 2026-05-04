@@ -60,8 +60,12 @@ export class AgentView extends ItemView {
     const settingsBtn = btns.createEl('button', { cls: 'agent-header-btn' });
     settingsBtn.innerHTML = '⚙️'; settingsBtn.title = 'Settings';
     settingsBtn.addEventListener('click', () => {
-      (this.app as any).setting.open();
-      (this.app as any).setting.openTabById('obsidian-sliver');
+      try {
+        (this.app as any).setting.open();
+        (this.app as any).setting.openTabById('obsidian-sliver');
+      } catch {
+        // mobile — settings API unavailable, button no-ops
+      }
     });
 
     this.messagesContainer = container.createDiv({ cls: 'agent-messages' });

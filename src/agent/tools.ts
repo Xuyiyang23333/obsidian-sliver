@@ -150,12 +150,14 @@ export async function deleteFile(ctx: ToolContext, path: string): Promise<ToolRe
     if (!confirmed) return { success: false, error: 'Operation cancelled by user' };
   }
 
-  const file = ctx.app.vault.getAbstractFileByPath(path);
+  const file = ctx.app.vault.getFileByPath(path);
   if (!file) return { success: false, error: `File not found: ${path}` };
 
   await ctx.app.vault.delete(file);
   return { success: true, data: { path } };
 }
+
+// deleteFile uses getFileByPath (files only)
 
 export async function createNote(ctx: ToolContext, path: string, content: string): Promise<ToolResult> {
   path = cleanVaultPath(path);
