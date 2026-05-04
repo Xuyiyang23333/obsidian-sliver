@@ -73,6 +73,8 @@ export default class ObsidianAgentPlugin extends Plugin {
   }
 
   async saveSettings() {
+    // Flush pending session saves to avoid race condition
+    await this.agentCore.getSessionManager().flushSaves();
     // Merge with existing data to preserve sessions
     const data = { ...(await this.loadData()), ...this.settings };
     await this.saveData(data);
