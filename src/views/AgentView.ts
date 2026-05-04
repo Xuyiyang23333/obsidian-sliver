@@ -324,6 +324,14 @@ export class AgentView extends ItemView {
     const sm = this.agentCore.getSessionManager();
     const ctx = sm.getCurrentContext();
 
+    // Reset per-turn state (same as sendMessage)
+    this.reasoningToggle = null;
+    this.reasoningContentDiv = null;
+    this.pendingReasoning = '';
+    this.needReasoningSep = false;
+    this.bubbleReceivedContent = false;
+    this.userHasScrolledUp = false;
+
     // Find the user message at or before this index
     let userIdx = -1;
     for (let i = index; i >= 0; i--) {
