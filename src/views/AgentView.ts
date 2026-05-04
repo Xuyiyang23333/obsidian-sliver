@@ -695,7 +695,7 @@ export class AgentView extends ItemView {
       if (!popup.contains(t) && t !== this.sessionLabel) { this.closeSessionPopup(); }
     };
     this.sessionPopupCloser = closer;
-    setTimeout(() => document.addEventListener('click', closer), 10);
+    requestAnimationFrame(() => document.addEventListener('click', closer));
   }
 
   private closeSessionPopup(): void {
