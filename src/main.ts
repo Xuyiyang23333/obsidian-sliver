@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Plugin, Notice } from 'obsidian';
 import { AgentView, VIEW_TYPE_AGENT } from './views/AgentView';
 import { AgentSettings, AgentSettingTab, DEFAULT_SETTINGS } from './settings';
 import { SkillManager } from './skills/SkillManager';
@@ -52,15 +52,17 @@ export default class ObsidianAgentPlugin extends Plugin {
 
     let leaf = workspace.getLeavesOfType(VIEW_TYPE_AGENT).first();
     if (!leaf) {
-      const rightLeaf = workspace.getRightLeaf(false);
-      if (rightLeaf) {
-        leaf = rightLeaf;
+      // Prefer right sidebar, fall back to split (mobile / narrow layout)
+      leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf('split');
+      if (leaf) {
         await leaf.setViewState({ type: VIEW_TYPE_AGENT, active: true });
       }
     }
 
     if (leaf) {
       workspace.revealLeaf(leaf);
+    } else {
+      new Notice('Could not open Agent view');
     }
   }
 
