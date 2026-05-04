@@ -189,7 +189,9 @@ export class AgentCore {
       }
 
     } catch (e) {
-      if (e instanceof ApiError) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        // user cancelled — silence
+      } else if (e instanceof ApiError) {
         if (e.retryable) this.callbacks.onError?.('Rate limited. Please wait and try again.');
         else this.callbacks.onError?.(e.message);
       } else {
