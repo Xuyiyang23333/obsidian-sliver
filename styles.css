@@ -164,17 +164,16 @@ If your plugin does not need CSS, delete this file.
 /* Action bar (📋 ✏️ 🔄 🗑️) — floats above message on hover */
 .agent-message-wrapper {
   position: relative;
-  display: flex;
-  flex-direction: column;
 }
 
 .agent-message-wrapper-user {
-  align-self: flex-end;
+  margin-left: auto;
+  width: fit-content;
   max-width: 85%;
 }
 
 .agent-message-wrapper-agent {
-  align-self: flex-start;
+  margin-right: auto;
 }
 
 .agent-actions-bar {
@@ -314,6 +313,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .agent-message-user {
+  width: 100%;
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }

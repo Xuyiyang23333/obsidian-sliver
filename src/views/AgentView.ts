@@ -186,8 +186,7 @@ export class AgentView extends ItemView {
 
   private addUserMessage(content: string): void {
     const el = this.addMsgEl(content, 'agent-message agent-message-user');
-    const idx = this.currentMsgIndex();
-    if (idx >= 0) this.addActionsBar(el, content, idx);
+    this.addActionsBar(el, content, this.currentMsgIndex());
   }
 
   private addSystemMessage(content: string, extraCls?: string): void {
@@ -221,13 +220,14 @@ export class AgentView extends ItemView {
 
   /** Create action bar (📋 ✏️ 🗑️) as a sibling after the message element */
   private addActionsBar(el: HTMLElement, text: string, index: number): void {
-    // Wrap message + action bar so bar floats above without layout space
+    // Always wrap the message, even if index is invalid (buttons come later on reload)
     const wrapperCls = el.hasClass('agent-message-user')
       ? 'agent-message-wrapper agent-message-wrapper-user'
       : 'agent-message-wrapper agent-message-wrapper-agent';
     const wrapper = this.messagesContainer.createDiv({ cls: wrapperCls });
     this.messagesContainer.insertBefore(wrapper, el);
     wrapper.appendChild(el);
+    if (index < 0) return; // no buttons until context index is available
     const bar = wrapper.createDiv({ cls: 'agent-actions-bar' });
 
     // Copy button
