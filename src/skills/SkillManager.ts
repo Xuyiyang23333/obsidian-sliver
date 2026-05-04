@@ -113,7 +113,11 @@ export class SkillManager {
       const existing = this.app.vault.getFileByPath(skillPath);
       if (!existing) {
         try { await this.app.vault.createFolder(normalizePath(`${skillsDir}/${skill.id}`)); } catch {}
-        await this.app.vault.create(skillPath, SKILL_CONTENTS[skill.id as keyof typeof SKILL_CONTENTS]);
+        try {
+          await this.app.vault.create(skillPath, SKILL_CONTENTS[skill.id as keyof typeof SKILL_CONTENTS]);
+        } catch (e) {
+          console.warn('obsidian-sliver: failed to deploy skill', skill.id, e);
+        }
       }
     }
 
