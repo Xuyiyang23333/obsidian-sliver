@@ -178,7 +178,9 @@ export class AgentCore {
             result = { success: false, error: (e as Error).message || String(e) };
           }
 
-          const resultStr = result.success ? JSON.stringify(result.data) : `Error: ${result.error}`;
+          const resultStr = result.success
+            ? (typeof result.data === 'string' ? result.data : JSON.stringify(result.data))
+            : `Error: ${result.error}`;
           this.callbacks.onToolProgress?.(name, result.success ? 'done' : 'error', resultStr);
 
           await this.sessionManager.addToolResult(toolCall.id, resultStr);
