@@ -112,9 +112,14 @@ export async function searchFiles(ctx: ToolContext, query: string, path?: string
 
   const lowerQuery = query.toLowerCase();
 
+  let scannedFiles = 0;
+  const scanLimit = Math.max(limitResults * 10, 200);
+
   for (const file of targetFiles) {
     if (results.length >= limitResults) break;
+    if (scannedFiles >= scanLimit) break;
 
+    scannedFiles++;
     const content = await ctx.app.vault.cachedRead(file);
     const lines = content.split('\n');
     const allMatches = lines
