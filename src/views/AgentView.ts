@@ -333,7 +333,7 @@ export class AgentView extends ItemView {
     textarea.focus();
   }
 
-  private regenerate(index: number): void {
+  private async regenerate(index: number): Promise<void> {
     const sm = this.agentCore.getSessionManager();
     const ctx = sm.getCurrentContext();
 
@@ -357,6 +357,8 @@ export class AgentView extends ItemView {
 
     // Truncate context after this user message
     sm.deleteMessageFrom(userIdx + 1);
+    await sm.saveToDisk();
+    await sm.saveToMarkdown();
 
     // Rebuild UI and send message again
     this.reloadCurrentMessages();
@@ -367,17 +369,22 @@ export class AgentView extends ItemView {
     this.sendBtn.setText('Cancel');
     this.sendBtn.addClass('agent-send-cancel');
     this.agentCore.setCallbacks(this.getCallbacks());
-    this.agentCore.processUserMessage(userText, true).then(() => {
+
+    try {
+      await this.agentCore.processUserMessage(userText, true);
       this.finalizeBubble();
       if (this.bubbleReceivedContent) {
         this.collapseReasoning();
       } else {
         this.reloadCurrentMessages();
       }
+    } catch (e) {
+      this.addErrorMessage('Regenerate failed: ' + ((e as Error).message || String(e)));
+    } finally {
       this.sendBtn.setText('Send');
       this.sendBtn.removeClass('agent-send-cancel');
       this.refreshSessionDropdown();
-    });
+    }
   }
 
   private deleteMessage(index: number): void {
