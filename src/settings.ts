@@ -327,13 +327,19 @@ export class AgentSettingTab extends PluginSettingTab {
     const rules = this.plugin.settings.pathRules;
 
     rules.forEach((rule, index) => {
-      new Setting(containerEl)
+      const setting = new Setting(containerEl);
+      setting.settingEl.setAttr('data-rule-index', String(index));
+
+      setting
         .addText(text => text
           .setPlaceholder('path/to/folder')
           .setValue(rule.path)
           .onChange(async (value) => {
-            this.plugin.settings.pathRules[index].path = value;
-            await this.plugin.saveSettings();
+            const idx = Number(setting.settingEl.getAttr('data-rule-index'));
+            if (idx >= 0 && idx < this.plugin.settings.pathRules.length) {
+              this.plugin.settings.pathRules[idx].path = value;
+              await this.plugin.saveSettings();
+            }
           }))
         .addDropdown(dropdown => dropdown
           .addOption('read-write', 'Read/Write')
@@ -342,14 +348,20 @@ export class AgentSettingTab extends PluginSettingTab {
           .addOption('follow-global', 'Follow Global')
           .setValue(rule.permission)
           .onChange(async (value) => {
-            this.plugin.settings.pathRules[index].permission = value as PathRule['permission'];
-            await this.plugin.saveSettings();
+            const idx = Number(setting.settingEl.getAttr('data-rule-index'));
+            if (idx >= 0 && idx < this.plugin.settings.pathRules.length) {
+              this.plugin.settings.pathRules[idx].permission = value as PathRule['permission'];
+              await this.plugin.saveSettings();
+            }
           }))
         .addExtraButton(button => button
           .setIcon('trash')
           .setTooltip('Delete rule')
           .onClick(async () => {
-            this.plugin.settings.pathRules.splice(index, 1);
+            const idx = Number(setting.settingEl.getAttr('data-rule-index'));
+            if (idx >= 0 && idx < this.plugin.settings.pathRules.length) {
+              this.plugin.settings.pathRules.splice(idx, 1);
+            }
             await this.plugin.saveSettings();
             this.display();
           }));
