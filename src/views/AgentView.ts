@@ -33,6 +33,7 @@ export class AgentView extends ItemView {
   private pendingNewSession = false;
   private bubbleReceivedContent = false;
   private userHasScrolledUp = false;
+  private scrollHandler: () => void;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
@@ -77,11 +78,12 @@ export class AgentView extends ItemView {
     });
 
     // Track manual scroll — user scrolling up pauses auto-scroll
-    this.messagesContainer.addEventListener('scroll', () => {
+    this.scrollHandler = () => {
       const el = this.messagesContainer;
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
       this.userHasScrolledUp = !atBottom;
-    });
+    };
+    this.messagesContainer.addEventListener('scroll', this.scrollHandler);
 
     const inputContainer = container.createDiv({ cls: 'agent-input-container' });
 
@@ -111,7 +113,12 @@ export class AgentView extends ItemView {
     this.refreshSessionDropdown();
   }
 
-  onClose(): Promise<void> { return Promise.resolve(); }
+  onClose(): Promise<void> {
+    if (this.scrollHandler) {
+      this.messagesContainer.removeEventListener('scroll', this.scrollHandler);
+    }
+    return Promise.resolve();
+  }
 
   private onSendClick(): void {
     if (this.agentCore.isProcessing) {
