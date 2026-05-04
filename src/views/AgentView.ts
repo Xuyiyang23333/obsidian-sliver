@@ -161,6 +161,8 @@ export class AgentView extends ItemView {
         this.addSystemMessage(this.plugin.settings.systemPrompt, 'agent-system-prompt');
       }
       this.pendingNewSession = false;
+      // New session — reset permission to global default
+      await this.agentCore.updatePermission(this.plugin.settings.globalPermission);
     }
     this.inputEl.value = '';
     this.addUserMessage(text);
@@ -641,6 +643,8 @@ export class AgentView extends ItemView {
     this.reset();
     const ok = await this.agentCore.getSessionManager().switchToSession(name);
     if (!ok) return;
+    // Reset permission to global default — "Allow session" is per-session
+    await this.agentCore.updatePermission(this.plugin.settings.globalPermission);
     this.reloadCurrentMessages(); this.refreshSessionDropdown();
   }
 
