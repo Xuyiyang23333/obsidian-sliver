@@ -32,6 +32,7 @@ export class AgentView extends ItemView {
   private needReasoningSep = false;
   private pendingNewSession = false;
   private bubbleReceivedContent = false;
+  private userHasScrolledUp = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
@@ -73,6 +74,13 @@ export class AgentView extends ItemView {
         const href = link.getAttribute('data-href') || link.getAttribute('href') || '';
         if (href) this.app.workspace.openLinkText(href, '', false);
       }
+    });
+
+    // Track manual scroll — user scrolling up pauses auto-scroll
+    this.messagesContainer.addEventListener('scroll', () => {
+      const el = this.messagesContainer;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+      this.userHasScrolledUp = !atBottom;
     });
 
     const inputContainer = container.createDiv({ cls: 'agent-input-container' });
@@ -127,6 +135,7 @@ export class AgentView extends ItemView {
     this.pendingReasoning = '';
     this.needReasoningSep = false;
     this.bubbleReceivedContent = false;
+    this.userHasScrolledUp = false;
 
     // Remove stale system prompt if setting was toggled off mid-conversation
     if (!this.plugin.settings.showSystemPrompt) {
@@ -360,6 +369,7 @@ export class AgentView extends ItemView {
 
   private reloadCurrentMessages(): void {
     this.messagesContainer.empty();
+    this.userHasScrolledUp = false;
     
     // Show system prompt at top if enabled
     if (this.plugin.settings.showSystemPrompt) {
@@ -690,13 +700,10 @@ export class AgentView extends ItemView {
     this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
   }
 
-  /** Only scroll if user is already near the bottom (within 50px),
-   *  so streaming output doesn't fight manual scrolling. */
+  /** Only auto-scroll if user hasn't manually scrolled up. */
   private smartScroll(): void {
-    const el = this.messagesContainer;
-    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distFromBottom <= 50) {
-      el.scrollTop = el.scrollHeight;
+    if (!this.userHasScrolledUp) {
+      this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
   }
 }
