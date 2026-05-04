@@ -205,14 +205,20 @@ export class SessionManager {
 
   private async saveToDiskNow(): Promise<void> {
     try {
+      let existing: Record<string, unknown> = {};
+      try {
+        existing = (await this.plugin.loadData()) || {};
+      } catch {
+        // Corrupted file — overwrite with fresh data
+      }
+
       const sessionsObj: Record<string, SessionData> = {};
       this.sessions.forEach((sessionData, name) => {
         sessionsObj[name] = sessionData;
       });
-      await this.plugin.saveData({
-        sessions: sessionsObj,
-        sessionOrder: this.sessionOrder,
-      });
+      existing.sessions = sessionsObj;
+      existing.sessionOrder = this.sessionOrder;
+      await this.plugin.saveData(existing);
     } catch {
       console.warn('obsidian-sliver: failed to save data.json');
     }
