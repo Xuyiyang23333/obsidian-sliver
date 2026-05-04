@@ -12,7 +12,7 @@ export default class ObsidianAgentPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
 
-    this.skillManager = new SkillManager(this.app);
+    this.skillManager = new SkillManager(this.app, this.settings);
     this.agentCore = new AgentCore(this, this.app);
     await this.agentCore.initialize();
 

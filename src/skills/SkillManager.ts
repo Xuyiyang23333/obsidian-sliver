@@ -1,4 +1,5 @@
 import { App, normalizePath, Notice, TFolder } from 'obsidian';
+import { AgentSettings } from '../settings';
 
 export const BUILTIN_SKILLS = [
   {
@@ -21,15 +22,17 @@ export const BUILTIN_SKILLS = [
 
 export class SkillManager {
   private app: App;
+  private settings: AgentSettings;
   private availableSkills: { name: string; description: string }[] = [];
 
-  constructor(app: App) {
+  constructor(app: App, settings: AgentSettings) {
     this.app = app;
+    this.settings = settings;
   }
 
   /** Scan vault for skill directories and parse their frontmatter */
   async discoverSkills(): Promise<void> {
-    const skillsDir = '_agents/skills';
+    const skillsDir = this.settings.skillsDir;
     const dir = this.app.vault.getFolderByPath(skillsDir);
     if (!dir) { this.availableSkills = []; return; }
 
@@ -91,7 +94,7 @@ export class SkillManager {
   }
 
   async loadSkill(name: string): Promise<{ success: boolean; data?: unknown; error?: string }> {
-    const path = `_agents/skills/${name}/SKILL.md`;
+    const path = `${this.settings.skillsDir}/${name}/SKILL.md`;
     const file = this.app.vault.getFileByPath(path);
     if (!file) return { success: false, error: `Skill not found: ${name}` };
     const content = await this.app.vault.read(file);
@@ -99,7 +102,7 @@ export class SkillManager {
   }
 
   async deployBuiltinSkills(): Promise<void> {
-    const skillsDir = '_agents/skills';
+    const skillsDir = this.settings.skillsDir;
     const dir = this.app.vault.getFolderByPath(skillsDir);
     if (!dir) {
       try { await this.app.vault.createFolder(skillsDir); } catch {}

@@ -25,6 +25,7 @@ export interface AgentSettings {
   globalPermission: GlobalPermission;
   pathRules: PathRule[];
   sessionDir: string;
+  skillsDir: string;
   thinkingMode: boolean;
   reasoningEffort: ReasoningEffort;
   systemPrompt: string;
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   globalPermission: 'ask-per-write',
   pathRules: [],
   sessionDir: '_agents',
+  skillsDir: '_agents/skills',
   thinkingMode: true,
   reasoningEffort: 'high',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
@@ -249,6 +251,17 @@ export class AgentSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.sessionDir)
         .onChange(async (value) => {
           this.plugin.settings.sessionDir = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Skills Directory')
+      .setDesc('Directory in vault where skill files are stored')
+      .addText(text => text
+        .setPlaceholder('_agents/skills')
+        .setValue(this.plugin.settings.skillsDir)
+        .onChange(async (value) => {
+          this.plugin.settings.skillsDir = value;
           await this.plugin.saveSettings();
         }));
 
