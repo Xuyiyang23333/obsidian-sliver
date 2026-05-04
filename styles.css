@@ -162,20 +162,29 @@ If your plugin does not need CSS, delete this file.
   word-wrap: break-word;
 }
 
-/* Action bar (📋 ✏️ 🗑️) below each message */
+/* Action bar (📋 ✏️ 🔄 🗑️) — floats above message on hover */
+.agent-message-wrapper {
+  position: relative;
+}
+
 .agent-actions-bar {
   display: flex;
   gap: 0;
   justify-content: flex-end;
   padding: 0;
-  margin: 0 0 2px 0;
+  margin: 0;
+  position: absolute;
+  bottom: -2px;
+  right: 0;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
 
-.agent-message:hover + .agent-actions-bar,
+.agent-message-wrapper:hover .agent-actions-bar,
 .agent-actions-bar:hover {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .agent-action-btn {

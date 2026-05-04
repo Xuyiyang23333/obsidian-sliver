@@ -221,9 +221,11 @@ export class AgentView extends ItemView {
 
   /** Create action bar (📋 ✏️ 🗑️) as a sibling after the message element */
   private addActionsBar(el: HTMLElement, text: string, index: number): void {
-    const bar = this.messagesContainer.createDiv({ cls: 'agent-actions-bar' });
-    // Place it right after the message element
-    this.messagesContainer.insertAfter(bar, el);
+    // Wrap message + action bar so bar floats above without layout space
+    const wrapper = this.messagesContainer.createDiv({ cls: 'agent-message-wrapper' });
+    this.messagesContainer.insertBefore(wrapper, el);
+    wrapper.appendChild(el);
+    const bar = wrapper.createDiv({ cls: 'agent-actions-bar' });
 
     // Copy button
     const copyBtn = bar.createEl('button', { cls: 'agent-action-btn' });
