@@ -362,21 +362,46 @@ export class AgentView extends ItemView {
     }
     
     const ctx = this.agentCore.getSessionManager().getCurrentContext();
+
+    // Pre-scan: merge reasoning_content across assistant messages within each turn.
+    // A "turn" spans from one user message to just before the next user message.
+    const turnFirstReasoning: number[] = []; // first assistant index with reasoning per turn
+    const turnMergedReasoning: string[] = []; // merged reasoning text per turn
+    const msgTurn: number[] = new Array(ctx.length).fill(-1);
+    let turn = -1;
+
     for (let i = 0; i < ctx.length; i++) {
       const m = ctx[i];
+      if (m.role === 'user') turn++;
+      msgTurn[i] = turn;
+
+      if (turn >= 0 && m.role === 'assistant' && m.reasoning_content) {
+        if (turnFirstReasoning[turn] === undefined) {
+          turnFirstReasoning[turn] = i;
+          turnMergedReasoning[turn] = m.reasoning_content;
+        } else {
+          turnMergedReasoning[turn] += '\n\n' + m.reasoning_content;
+        }
+      }
+    }
+
+    for (let i = 0; i < ctx.length; i++) {
+      const m = ctx[i];
+      const t = msgTurn[i];
+
       if (m.role === 'user') {
         const el = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-user' });
         el.setText(m.content);
         this.addActionsBar(el, m.content, i);
       } else if (m.role === 'assistant' && !m.tool_calls) {
         const div = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-agent' });
-        if (m.reasoning_content) this.addReasoningToggle(div, m.reasoning_content);
+        if (turnFirstReasoning[t] === i) this.addReasoningToggle(div, turnMergedReasoning[t]);
         if (m.content) MarkdownRenderer.render(this.app, m.content, div, '', this.mdComponent);
         if (m.content) this.addActionsBar(div, m.content, i);
       } else if (m.role === 'assistant' && m.tool_calls) {
         if (m.content || m.reasoning_content) {
           const div = this.messagesContainer.createDiv({ cls: 'agent-message agent-message-agent' });
-          if (m.reasoning_content) this.addReasoningToggle(div, m.reasoning_content);
+          if (turnFirstReasoning[t] === i) this.addReasoningToggle(div, turnMergedReasoning[t]);
           if (m.content) {
             MarkdownRenderer.render(this.app, m.content, div, '', this.mdComponent);
             this.addActionsBar(div, m.content, i);
