@@ -210,7 +210,7 @@ export function getToolDefinitions(availableSkills?: { name: string; description
       type: 'function',
       function: {
         name: 'edit_file',
-        description: 'Replace all occurrences of oldText with newText in an existing file.',
+        description: 'Replace all occurrences of oldText with newText in an existing file. To fill an empty file, use write_file instead.',
         parameters: {
           type: 'object',
           properties: {
