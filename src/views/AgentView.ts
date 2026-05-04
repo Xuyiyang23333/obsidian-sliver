@@ -376,6 +376,11 @@ export class AgentView extends ItemView {
   }
 
   private reloadCurrentMessages(): void {
+    // Clean up old markdown components to prevent memory leak
+    this.removeChild(this.mdComponent);
+    this.mdComponent = new Component();
+    this.addChild(this.mdComponent);
+
     this.messagesContainer.empty();
     this.userHasScrolledUp = false;
     
