@@ -429,7 +429,8 @@ export class SessionManager {
     }));
   }
 
-  /** Delete a message at index and all messages after it */
+  /** Delete a message at index and all messages after it.
+   * @note Caller must call saveToDisk() / saveToMarkdown() to persist. */
   deleteMessageFrom(index: number): void {
     const session = this.sessions.get(this.currentSession);
     if (!session || index < 0 || index >= session.context.length) return;
@@ -437,7 +438,8 @@ export class SessionManager {
     session.tokenCount = this.estimateTokens();
   }
 
-  /** Edit the content of a message at index */
+  /** Edit the content of a message at index.
+   * @note Caller must call saveToDisk() / saveToMarkdown() to persist. */
   editMessageAt(index: number, content: string): void {
     const session = this.sessions.get(this.currentSession);
     if (!session || index < 0 || index >= session.context.length) return;
