@@ -164,11 +164,11 @@ If your plugin does not need CSS, delete this file.
 /* Action bar (📋 ✏️ 🔄 🗑️) — floats above message on hover */
 .agent-message-wrapper {
   position: relative;
+  display: block;
 }
 
 .agent-message-wrapper-user {
   margin-left: auto;
-  width: fit-content;
   max-width: 85%;
 }
 
