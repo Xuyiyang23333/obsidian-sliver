@@ -326,10 +326,14 @@ export class SessionManager {
   async loadSession(name: string): Promise<boolean> {
     if (this.sessions.has(name)) return true;
 
-    const data = (await this.plugin.loadData()) as { sessions?: Record<string, SessionData> } | null;
-    if (data?.sessions?.[name]) {
-      this.sessions.set(name, data.sessions[name]);
-      return true;
+    try {
+      const data = (await this.plugin.loadData()) as { sessions?: Record<string, SessionData> } | null;
+      if (data?.sessions?.[name]) {
+        this.sessions.set(name, data.sessions[name]);
+        return true;
+      }
+    } catch {
+      // Corrupted data.json — fall through to Markdown recovery
     }
 
     return this.loadFromMarkdown(name);
