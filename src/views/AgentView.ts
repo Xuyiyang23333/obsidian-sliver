@@ -454,7 +454,7 @@ export class AgentView extends ItemView {
       });
     }
     if (this.reasoningContentDiv) this.reasoningContentDiv.setText(this.pendingReasoning);
-    this.scrollBottom();
+    this.smartScroll();
   }
 
   private collapseReasoning(): void {
@@ -495,7 +495,7 @@ export class AgentView extends ItemView {
       rd.style.display = 'none';
       row.addEventListener('click', (e) => { e.stopPropagation(); rd.style.display = rd.style.display === 'none' ? 'block' : 'none'; });
     }
-    this.scrollBottom();
+    this.smartScroll();
   }
 
   // ---- Streaming ----
@@ -536,7 +536,7 @@ export class AgentView extends ItemView {
       }, 200);
       while (this.bubbleContentDiv.children.length > parts.length) this.bubbleContentDiv.lastChild?.remove();
     }
-    this.scrollBottom();
+    this.smartScroll();
   }
 
   private finalizeBubble(): void {
@@ -688,5 +688,15 @@ export class AgentView extends ItemView {
 
   private scrollBottom(): void {
     this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+  }
+
+  /** Only scroll if user is already near the bottom (within 50px),
+   *  so streaming output doesn't fight manual scrolling. */
+  private smartScroll(): void {
+    const el = this.messagesContainer;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom <= 50) {
+      el.scrollTop = el.scrollHeight;
+    }
   }
 }

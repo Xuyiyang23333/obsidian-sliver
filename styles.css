@@ -159,6 +159,7 @@ If your plugin does not need CSS, delete this file.
   font-size: var(--font-ui-small);
   line-height: 1.5;
   word-wrap: break-word;
+  user-select: text;
 }
 
 /* Action bar (📋 ✏️ 🔄 🗑️) — floats above message on hover */
