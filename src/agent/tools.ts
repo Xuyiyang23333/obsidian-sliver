@@ -76,7 +76,7 @@ export async function editFile(ctx: ToolContext, path: string, oldText: string, 
 }
 
 export async function listFiles(ctx: ToolContext, path?: string): Promise<ToolResult> {
-  const targetPath = cleanVaultPath(path || '');
+  const targetPath = cleanVaultPath(path || ''); // empty path = vault root
   const perm = ctx.checkPermission(targetPath, 'read');
   if (!perm.allowed) return { success: false, error: perm.reason };
 
@@ -96,7 +96,7 @@ export async function listFiles(ctx: ToolContext, path?: string): Promise<ToolRe
 }
 
 export async function searchFiles(ctx: ToolContext, query: string, path?: string, maxResults?: number, maxMatches?: number): Promise<ToolResult> {
-  const perm = ctx.checkPermission(path || '', 'read');
+  const perm = ctx.checkPermission(path || '', 'read'); // empty path = vault root
   if (!perm.allowed) return { success: false, error: perm.reason };
 
   const limitResults = maxResults && maxResults > 0 ? maxResults : 20;
