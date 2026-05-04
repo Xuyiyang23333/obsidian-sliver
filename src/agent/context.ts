@@ -177,15 +177,14 @@ export class SessionManager {
 
   async saveToDisk(): Promise<void> {
     try {
-      const data: Record<string, SessionData> = {};
+      const sessionsObj: Record<string, SessionData> = {};
       this.sessions.forEach((sessionData, name) => {
-        data[name] = sessionData;
+        sessionsObj[name] = sessionData;
       });
-
-      const existing = (await this.plugin.loadData()) || {};
-      (existing as Record<string, unknown>).sessions = data;
-      (existing as Record<string, unknown>).sessionOrder = this.sessionOrder;
-      await this.plugin.saveData(existing);
+      await this.plugin.saveData({
+        sessions: sessionsObj,
+        sessionOrder: this.sessionOrder,
+      });
     } catch {
       console.warn('obsidian-sliver: failed to save data.json');
     }
@@ -193,13 +192,10 @@ export class SessionManager {
 
   async loadFromDisk(): Promise<void> {
     const raw = await this.plugin.loadData().catch(() => {
-      console.warn('obsidian-sliver: data.json is corrupted, resetting');
+      console.warn('obsidian-sliver: data.json is corrupted, starting with empty sessions');
       return null;
     });
-    if (!raw) {
-      await this.plugin.saveData({});
-      return;
-    }
+    if (!raw) return; // keep running with empty state, don't overwrite the corrupted file
     const data = raw as { sessions?: Record<string, SessionData>; sessionOrder?: string[] };
     if (data.sessions) {
       Object.entries(data.sessions).forEach(([name, sessionData]) => {
