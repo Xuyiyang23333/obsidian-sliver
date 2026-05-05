@@ -563,6 +563,15 @@ export class AgentView extends ItemView {
           if (paraEl) paraEl.remove();
           const rendered = this.bubbleContentDiv.createDiv();
           MarkdownRenderer.render(this.app, parts[i], rendered, '', this.mdComponent);
+        } else {
+          // Already rendered (e.g. by the 200ms timer). If the source text
+          // has been extended since, re-render to avoid stale content.
+          const stored = paraEl.getAttr('data-rendered');
+          if (stored !== parts[i]) {
+            paraEl.empty();
+            MarkdownRenderer.render(this.app, parts[i], paraEl, '', this.mdComponent);
+            paraEl.setAttr('data-rendered', parts[i]);
+          }
         }
       }
       const liveIdx = parts.length - 1;
@@ -585,6 +594,7 @@ export class AgentView extends ItemView {
         if (capturedEl.parentElement && capturedEl.hasClass('agent-streaming') && capturedText) {
           capturedEl.empty(); capturedEl.removeClass('agent-streaming');
           MarkdownRenderer.render(this.app, capturedText, capturedEl, '', this.mdComponent);
+          capturedEl.setAttr('data-rendered', capturedText);
         }
       }, 200);
       while (this.bubbleContentDiv.children.length > parts.length) this.bubbleContentDiv.lastChild?.remove();
