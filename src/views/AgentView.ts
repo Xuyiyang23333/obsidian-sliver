@@ -35,6 +35,7 @@ export class AgentView extends ItemView {
   private userHasScrolledUp = false;
   private scrollHandler: () => void;
   private _keyboardHandler?: () => void;
+  private _keyboardRaf = 0;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
@@ -119,11 +120,11 @@ export class AgentView extends ItemView {
 
     // Mobile: shrink container to visual viewport when on-screen keyboard opens
     if (window.visualViewport) {
-      let raf = 0;
+      this._keyboardRaf = 0;
       this._keyboardHandler = () => {
-        if (raf) return;
-        raf = requestAnimationFrame(() => {
-          raf = 0;
+        if (this._keyboardRaf) return;
+        this._keyboardRaf = requestAnimationFrame(() => {
+          this._keyboardRaf = 0;
           this.containerEl.style.height = `${window.visualViewport!.height}px`;
         });
       };
@@ -138,6 +139,7 @@ export class AgentView extends ItemView {
     }
     if (this._keyboardHandler) {
       window.visualViewport?.removeEventListener('resize', this._keyboardHandler);
+      if (this._keyboardRaf) { cancelAnimationFrame(this._keyboardRaf); this._keyboardRaf = 0; }
     }
     return Promise.resolve();
   }
