@@ -34,10 +34,8 @@ export default class ObsidianAgentPlugin extends Plugin {
     // Register settings tab
     this.addSettingTab(new AgentSettingTab(this.app, this));
 
-    // Activate view on layout ready
-    this.app.workspace.onLayoutReady(() => {
-      this.activateView();
-    });
+    // Ribbon icon and command palette already allow opening the view;
+    // don't force-open sidebar on every startup.
   }
 
   async onunload() {
