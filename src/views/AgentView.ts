@@ -34,6 +34,7 @@ export class AgentView extends ItemView {
   private bubbleReceivedContent = false;
   private userHasScrolledUp = false;
   private scrollHandler: () => void;
+  private _keyboardHandler?: () => void;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianAgentPlugin) {
     super(leaf);
@@ -115,11 +116,28 @@ export class AgentView extends ItemView {
 
     this.addChild(this.mdComponent);
     this.refreshSessionDropdown();
+
+    // Mobile: shrink container to visual viewport when on-screen keyboard opens
+    if (window.visualViewport) {
+      let raf = 0;
+      this._keyboardHandler = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          this.containerEl.style.height = `${window.visualViewport!.height}px`;
+        });
+      };
+      window.visualViewport.addEventListener('resize', this._keyboardHandler);
+      this._keyboardHandler();
+    }
   }
 
   onClose(): Promise<void> {
     if (this.scrollHandler) {
       this.messagesContainer.removeEventListener('scroll', this.scrollHandler);
+    }
+    if (this._keyboardHandler) {
+      window.visualViewport?.removeEventListener('resize', this._keyboardHandler);
     }
     return Promise.resolve();
   }
