@@ -555,6 +555,9 @@ export class AgentView extends ItemView {
     if (this.bubbleContentDiv) {
       const parts = this.splitParagraphs(this.bubbleText);
       for (let i = 0; i < parts.length - 1; i++) {
+        // NOTE: children indices are kept in sync with parts via remove()+createDiv()
+        // pairing. If remove() is ever skipped (e.g. for an already-rendered paragraph),
+        // the next remove() would target the wrong child and left-shift must be accounted for.
         let paraEl = this.bubbleContentDiv.children[i] as HTMLElement | undefined;
         if (!paraEl || paraEl.hasClass('agent-streaming')) {
           if (paraEl) paraEl.remove();
@@ -592,8 +595,23 @@ export class AgentView extends ItemView {
   private finalizeBubble(): void {
     if (this.liveParaTimer !== null) { clearTimeout(this.liveParaTimer); this.liveParaTimer = null; }
     if (this.currentBubble && this.bubbleText && this.bubbleContentDiv) {
-      this.bubbleContentDiv.empty();
-      MarkdownRenderer.render(this.app, this.bubbleText, this.bubbleContentDiv, '', this.mdComponent);
+      // If streaming already rendered content, only finalize the last
+      // agent-streaming paragraph — avoids a destructive empty()+render()
+      // that would cause a visible flicker.
+      if (this.bubbleContentDiv.children.length > 0) {
+        const last = this.bubbleContentDiv.lastElementChild as HTMLElement | null;
+        if (last && last.hasClass('agent-streaming')) {
+          last.removeClass('agent-streaming');
+          last.empty();
+          const parts = this.splitParagraphs(this.bubbleText);
+          if (parts.length > 0) {
+            MarkdownRenderer.render(this.app, parts[parts.length - 1], last, '', this.mdComponent);
+          }
+        }
+      } else {
+        // Fallback: no children yet (e.g. empty response) → full render
+        MarkdownRenderer.render(this.app, this.bubbleText, this.bubbleContentDiv, '', this.mdComponent);
+      }
       const idx = this.currentMsgIndex();
       if (idx >= 0) this.addActionsBar(this.currentBubble, this.bubbleText, idx);
     }
