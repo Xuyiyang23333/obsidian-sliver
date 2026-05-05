@@ -563,6 +563,7 @@ export class AgentView extends ItemView {
           if (paraEl) paraEl.remove();
           const rendered = this.bubbleContentDiv.createDiv();
           MarkdownRenderer.render(this.app, parts[i], rendered, '', this.mdComponent);
+          rendered.setAttr('data-rendered', parts[i]);
         } else {
           // Already rendered (e.g. by the 200ms timer). If the source text
           // has been extended since, re-render to avoid stale content.
