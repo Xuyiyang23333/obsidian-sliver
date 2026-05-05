@@ -11,7 +11,7 @@ If your plugin does not need CSS, delete this file.
 .agent-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  /* height is managed by Obsidian panel on desktop; on mobile by visualViewport handler */
 }
 
 .agent-header {
