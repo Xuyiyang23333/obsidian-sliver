@@ -602,8 +602,9 @@ export class AgentView extends ItemView {
   }
 
   private splitParagraphs(text: string): string[] {
-    const parts = text.split('\n\n');
-    if (parts.length > 1 && parts[parts.length - 1] === '') return parts.slice(0, -1);
+    const parts = text.split('\n\n').filter(p => p !== '');
+    // If the entire text is empty, keep one empty element as the live paragraph
+    if (parts.length === 0) parts.push('');
     return parts;
   }
 
