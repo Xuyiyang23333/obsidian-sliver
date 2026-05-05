@@ -564,6 +564,13 @@ export class AgentView extends ItemView {
       }
       const liveIdx = parts.length - 1;
       let liveEl = this.bubbleContentDiv.children[liveIdx] as HTMLElement | undefined;
+      // If the timer already rendered this paragraph into Markdown HTML,
+      // discard it and re-create as streaming placeholder — calling setText
+      // on rendered HTML would destroy the rendered content permanently.
+      if (liveEl && !liveEl.hasClass('agent-streaming')) {
+        liveEl.remove();
+        liveEl = undefined;
+      }
       if (!liveEl) liveEl = this.bubbleContentDiv.createDiv({ cls: 'agent-streaming' });
       liveEl.setText(parts[liveIdx]);
       if (this.liveParaTimer !== null) clearTimeout(this.liveParaTimer);
